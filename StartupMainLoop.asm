@@ -4,19 +4,19 @@ begin:
         ret
 
 startup:
-        call (CLEARING BACKGROUND)
-        ld hl, ;; &Player_1_CharA
+        call clear_background
+        ld hl, char_select_p1_c1                                ; Player 1 Char A
         ld (hl), -1
         inc hl
         ld (hl), -1 					        ; Player 1 Char B
-        ld hl, ;; &Character_Select_Var
+        ld hl, char_select_var                                  ; &Character_Select_Var
         ld (hl), 0
-        call (DRAW CHARACTER SELECT SCREEN)                     
+        call draw_char_select                     
         ;; jp char_select_loop
 
 char_select_loop:
-        call (ACCEPT INPUT ON CHARACTER SELECT SCREEN)
-        call (DRAW CHARACTER SELECT SCREEN)
+        call check_input_char_select
+        call draw_char_select
         jp char_select_loop
 
 start_battle:
@@ -69,9 +69,43 @@ main_loop:
 
         jp main_loop                                            ; re-call main_loop
 
+; #################################### FUNCTIONS ####################################
 
+clear_background:
+        ret
 
+draw_char_select:
+        ret
 
+check_input_char_select:
+        jp start_battle
+        ret
+
+dummy_fill_display_attributes:
+        ld hl, empty_third_attr_buf
+        ld de, $5800
+        ld bc, 256
+        ldir
+        ld hl, empty_third_attr_buf
+        ld bc, 256
+        ldir
+        ld hl, empty_third_attr_buf
+        ld bc, 256
+        ldir
+        ret
+
+; ###################################### DATA ######################################
+
+char_select_var:
+        defb $00
+char_select_p1_c1:
+        defb $00
+char_select_p1_c2:
+        defb $00
+char_select_p2_c1:
+        defb $00
+char_select_p2_c2:
+        defb $00
 
 
 empty_third_px_buf:
