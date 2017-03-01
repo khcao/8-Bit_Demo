@@ -20,17 +20,18 @@ char_select_loop:
         jp char_select_loop
 
 start_battle:
-        ld hl, menu_third_buf                                   ; draw default background for data (top) third of screen
+        call dummy_fill_display_attributes
+        ld hl, menu_third_px_buf                                ; draw default background for data (top) third of screen
         ld de, $4000
         ld bc, 2048
         ldir
         ; NOTE: fill in part to change attributes for data third
-        ld hl, visual_third_buf                                 ; draw current (default) background for visual third of screen
+        ld hl, visual_third_px_buf                              ; draw current (default) background for visual third of screen
         ;;ld de, $4800
         ld bc, 2048
         ldir
         ; NOTE: fill in part to change attributes for visual third
-        ld hl, menu_third_buf                                   ; draw current (default) background for menu third of screen
+        ld hl, menu_third_px_buf                                ; draw current (default) background for menu third of screen
         ;;ld de, $5000
         ld bc, 2048
         ldir
@@ -119,11 +120,32 @@ visual_third_attr_buf:
         defs 256, $07                                           ;    < attributes >
 
 menu_third_px_buf:
-        defs 256, $ff                                           ;          ^
-        defs 1536, $00                                          ;      < pixels >
-        defs 256, $ff                                           ;          v
+        defs 32, $ff                                            ;          ^ 
+        defs 192, $00                                           ;
+        defs 32, $ff                                            ;-
+        defs 32, $ff                                            ;
+        defs 192, $00                                           ;
+        defs 32, $ff                                            ;-
+        defs 32, $ff                                            ;
+        defs 192, $00                                           ;
+        defs 32, $ff                                            ;-
+        defs 32, $ff                                            ;
+        defs 192, $00                                           ;      < pixels >
+        defs 32, $ff                                            ;- ((0-31) + (0-7)*256) + (0 or 224)
+        defs 32, $ff                                            ;   
+        defs 192, $00                                           ;
+        defs 32, $ff                                            ;-
+        defs 32, $ff                                            ;
+        defs 192, $00                                           ;
+        defs 32, $ff                                            ;-
+        defs 32, $ff                                            ;
+        defs 192, $00                                           ;
+        defs 32, $ff                                            ;-
+        defs 32, $ff                                            ;
+        defs 192, $00                                           ;          
+        defs 32, $ff                                            ;-         v
 menu_third_attr_buf:
-        defs 256, $07                                           ;    < attributes >
+        defs 256, $04                                           ;    < attributes >
 
 keymap:
         defb $fe, '#', 'Z', 'X', 'C', 'V'
