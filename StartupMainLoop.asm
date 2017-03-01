@@ -96,7 +96,6 @@ dummy_fill_display_attributes:
         ret
 
 ; ###################################### DATA ######################################
-
 char_select_var:
         defb $00
 char_select_p1_c1:
@@ -107,8 +106,14 @@ char_select_p2_c1:
         defb $00
 char_select_p2_c2:
         defb $00
-
-
+char_data:				;	< HP, Armor, MR, 16 bit memory for move 1, 16 bit memory for move 2, 16 bit memory for move 3>
+		defb $50, $00, $14, $00, $00, $00, $00,$00, $00
+		defb $5A, $00, $14, $00, $00, $00, $00,$00, $00
+		defb $5A, $00, $14, $00, $00, $00, $00,$00, $00
+		defb $8C, $00, $00, $00, $00, $00, $00,$00, $00
+		defb $96, $00, $00, $00, $00, $00, $00,$00, $00
+		defb $96, $00, $00, $00, $00, $00, $00,$00, $00
+ 
 empty_third_px_buf:
         defs 2048, $00                                          ;      < pixels >
 empty_third_attr_buf:
