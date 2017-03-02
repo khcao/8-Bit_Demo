@@ -113,7 +113,15 @@ char_data:		;	< HP, Armor, MR, 16 bit memory for move 1, 16 bit memory for move 
 	defb $8C, $00, $00, $00, $00, $00, $00,$00, $00
 	defb $96, $00, $00, $00, $00, $00, $00,$00, $00
 	defb $96, $00, $00, $00, $00, $00, $00,$00, $00
- 
+in_battle_chars:
+	defb $00, $00, $00, $00, $00, $00, $00,$00, $00
+	defb $00, $00, $00, $00, $00, $00, $00,$00, $00
+	defb $00, $00, $00, $00, $00, $00, $00,$00, $00
+	defb $00, $00, $00, $00, $00, $00, $00,$00, $00
+move_order:
+	defb $00, $00
+in_battle_moves: ; <move address (16 bit), subject, target>
+	defb $00, $00, $00, $00
 empty_third_px_buf:
         defs 2048, $00                                          ;      < pixels >
 empty_third_attr_buf:
