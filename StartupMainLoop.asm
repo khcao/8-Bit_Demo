@@ -198,9 +198,77 @@ print_char_to_data:
         ret
 
 handle_input:
-        ld de, $3D80
+        ld hl, keymap
+        ld d, 8                                                 ; load number of rows into d
+        ld c, $fe
+handle_input_read_rows:
+        ld b, (hl)                                              ; grab keyboard port from first column in the keymap
+        inc hl                                                  ; move over to the asciis of that port/key-row
+        in a, (c)                                               ; read the row fo keys
+        and $1f                                                 ; grab the 5 bits of the read row
+        ld e, 5                                                 ; load number of keys in the row into e
+handle_input_read_keys_in_row:
+        srl a
+        jr nc, handle_input_load_read_key                       ; if the bit is 0, we've found our key in a
+        inc hl
+        dec e
+        jr nz, handle_input_read_keys_in_row                    ; loop across the row
+        dec d
+        jr nz, handle_input_read_rows                           ; loop every single row
+        ld a, ' '                                               ; if no key was read, input "blank"
+        jp handle_input_end_read
+handle_input_load_read_key:
+        ld a, (hl)
+handle_input_end_read:                                          ; a holds the pressed key
+        cp (last_input)
+        jr z, handle_input_unchanged
+        cp 'A'
+        jr z, handle_input_a
+        cp 'S'
+        jr z, handle_input_s
+        cp 'D'
+        jr z, handle_input_d
+        cp 'W'
+        jr z, handle_input_w
+        cp 'e'
+        jr z, handle_input_enter
+        cp 's'
+        jr z, handle_input_shift
+        ;;cp ' '
+        ;;jr z, handle_input_none
+handle_input_none:
+        ld de, $3D00
+        ld (last_input), a
+        jp handle_input_print_char
+handle_input_a:
+        ld de, $3E08
+        ld (last_input), a
+        jp handle_input_print_char
+handle_input_s:
+        ld de, $3E98
+        ld (last_input), a
+        jp handle_input_print_char
+handle_input_d:
+        ld de, $3E20
+        ld (last_input), a
+        jp handle_input_print_char
+handle_input_w:
+        ld de, $3EB8
+        ld (last_input), a
+        jp handle_input_print_char
+handle_input_enter:
+        ld de, $3F28
+        ld (last_input), a
+        jp handle_input_print_char
+handle_input_shift:
+        ld de, $3F98
+        ld (last_input), a
+        jp handle_input_print_char
+handle_input_print_char:
+        ;;ld de, $3D80
         ld hl, $0045
         call print_char_to_menu
+handle_input_unchanged:
         ret
 
 ; ########################################################################################################
@@ -285,11 +353,11 @@ menu_third_attr_buf:
         defs 256, $07                                           ;    < attributes >
 
 keymap:
-        defb $fe, '#', 'Z', 'X', 'C', 'V'
+        defb $fe, 's', 'Z', 'X', 'C', 'V'
         defb $fd, 'A', 'S', 'D', 'F', 'G'
         defb $fb, 'Q', 'W', 'E', 'R', 'T'
         defb $f7, '1', '2', '3', '4', '5'
         defb $ef, '0', '9', '8', '7', '6'
         defb $df, 'P', 'O', 'I', 'U', 'Y'
-        defb $bf, '#', 'L', 'K', 'J', 'H'
+        defb $bf, 'e', 'L', 'K', 'J', 'H'
         defb $7f, ' ', '#', 'M', 'N', 'B'
