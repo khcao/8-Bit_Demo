@@ -180,6 +180,7 @@ print_char_to_menu_bot_cell_loop:
         push de                                                 ; compensate relative buffer address by adding it to the actual buffer address
         ld de, menu_third_px_buf
         add hl, de
+        pop de
         ld a, (de)
         ld (hl), a
         pop hl
@@ -198,7 +199,7 @@ print_char_to_data:
 
 handle_input:
         ld de, $3D80
-        ld hl, $0046
+        ld hl, $0045
         call print_char_to_menu
         ret
 
