@@ -300,7 +300,7 @@ char_data:
 ;;; <types: phys, magic, armor, MR, heal, dodge, MR debuff>
 ;;; < cd, type, value, 10-byte name>
 ;;; < (13 bytes x 18 skills) In character order >	
-skill_dictionary:
+move_dictionary:
 	defb $01, $07, $02 ,$20, $20, $4d, $6f, $76, $65, $20, $31, $20, $20
 	defb $01, $01, $02 ,$20, $20, $4d, $6f, $76, $65, $20, $32, $20, $20
 	defb $04, $03, $05 ,$20, $20, $4d, $6f, $76, $65, $20, $33, $20, $20
