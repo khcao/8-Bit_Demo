@@ -241,22 +241,28 @@ handle_input_none:
         ld (last_input), a
         jp handle_input_print_char
 handle_input_a:
+        call short_beep
         ld de, $3E08
         ld (last_input), a
         jp handle_input_print_char
 handle_input_s:
+        call short_beep
         ld de, $3E98
         ld (last_input), a
         jp handle_input_print_char
 handle_input_d:
+        call short_beep
         ld de, $3E20
         ld (last_input), a
         jp handle_input_print_char
 handle_input_w:
+        
+        call short_beep
         ld de, $3EB8
         ld (last_input), a
         jp handle_input_print_char
 handle_input_enter:
+        call short_beep
         ld de, $3F28
         ld (last_input), a
         jp handle_input_print_char
@@ -270,6 +276,31 @@ handle_input_print_char:
         call print_char_to_menu
 handle_input_unchanged:
         ret
+
+
+; Beep duration can be increased by increasing value loaded into C
+; Beep pitch is increased by decreasing values loaded into B and vice versa
+short_beep:
+    ld c, 100
+    di
+loop:
+    ld a, $10
+    out ($fe), a
+    ld b,100
+delay1:
+    djnz delay1
+
+    xor a
+    out ($fe), a
+    ld b,100
+delay2:
+    djnz delay2
+
+    dec c
+    jp nz, loop
+    
+    ei
+    ret 
 
 ; ########################################################################################################
 ; ################################################ DATA ##################################################
