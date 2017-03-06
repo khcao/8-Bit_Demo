@@ -288,14 +288,14 @@ char_select_p2_c2:
 last_input:
         defb $00                                                ; buffer to keep track of the input (or lack thereof) of the last frame
 
-;;; Char Dictionary (9 bytes x 6 characters): < HP, Armor, MR, 16 bit memory for move 1, 16 bit memory for move 2, 16 bit memory for move 3>
+;;; Char Dictionary (6 bytes x 6 characters): < HP, Armor, MR, move1 offset, move2 offset, move3 offset >
 char_data:  
-	defb $50, $00, $14, $00, $00, $00, $00, $00, $00
-	defb $5A, $00, $14, $00, $00, $00, $00, $00, $00
-	defb $5A, $00, $14, $00, $00, $00, $00, $00, $00
-	defb $8C, $00, $00, $00, $00, $00, $00, $00, $00
-	defb $96, $00, $00, $00, $00, $00, $00, $00, $00
-	defb $96, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $50, $00, $14, $00, $01, $02
+	defb $5A, $00, $14, $03, $04, $05
+	defb $5A, $00, $14, $06, $07, $08
+	defb $8C, $00, $00, $09, $0a, $0b
+	defb $96, $00, $00, $0c, $0d, $0e
+	defb $96, $00, $00, $0f, $10, $11
 	
 ;;; <types: phys, magic, armor, MR, heal, dodge, MR debuff>
 ;;; < cd, type, value, 10-byte name>
