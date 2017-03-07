@@ -24,20 +24,68 @@ start_battle:
         ld de, $4000
         ld bc, 2048
         ldir
-        ; NOTE: fill in part to change attributes for data third
+        ld hl, bordered_third_attr_buf
+        ld de, $5800
+        ld bc, 256
+        ldir
+
         ld hl, visual_third_px_buf                              ; draw current (default) background for visual third of screen
-        ;;ld de, $4800
+        ld de, $4800
         ld bc, 2048
         ldir
-        ; NOTE: fill in part to change attributes for visual third
-        ld hl, bordered_third_px_buf                            ; draw current (default) background for menu third of screen
+        ld hl, visual_third_attr_buf
+        ld de, $5900
+        ld bc, 256
+        ldir
+
+        ld hl, bordered_third_px_buf                            ; draw current (default) background for the buffer of menu third of screen
         ld de, menu_third_px_buf
         ld bc, 2048
         ldir
-        ; NOTE: fill in part to change attributes for menu third
+        ld hl, bordered_third_attr_buf
+        ld de, $5A00
+        ld bc, 256
+        ldir
 
-                                                                ; fill up player 1 char A stats buffer with character dictionary + 1st char select buffer
-                                                                ; fill up player 1 char B stats buffer with character dictionary + 2nd char select buffer
+        ;;; fill up player 1 char A stats buffer with character dictionary + 1st char select buffer
+        ld hl, char_select_p1_c1
+        ld a, (hl)                                              ; try to have char_index to be [0,5] (6 and 7 results in undefined behavior)
+        and 7
+        ld (hl), a                                              ; multiply by 6 to get the offset from the character dictionary into a
+        rlca
+        rlca
+        add a, (hl)
+        add a, (hl)
+        ld hl, char_data                                        ; add the offset to char_data and put in hl the new address (= char_data + (6*char_index))
+        ld b, 0
+        ld c, a
+        add hl, bc
+        ld de, in_battle_chars                                  ; copy the data from the dictionary char_data into the data structure holding real-time player data
+        ld bc, 6
+        ldir
+
+        ;;; fill up player 1 char B stats buffer with character dictionary + 2nd char select buffer
+        ld hl, char_select_p1_c2
+        ld a, (hl)                                              ; try to have char_index to be [0,5] (6 and 7 results in undefined behavior)
+        and 7
+        ld (hl), a                                              ; multiply by 6 to get the offset from the character dictionary into a
+        rlca
+        rlca
+        add a, (hl)
+        add a, (hl)
+        ld hl, char_data                                        ; add the offset to char_data and put in hl the new address (= char_data + (6*char_index))
+        ld b, 0
+        ld c, a
+        add hl, bc
+        push hl                                                 ; calculate the address of the second data structure holding real-time player data
+        ld hl, in_battle_chars
+        ld bc, 8
+        add hl, bc
+        ld d, h
+        ld e, l
+        pop hl                                                 ; copy the data from the dictionary char_data into the data structure holding real-time player data
+        ld bc, 6
+        ldir
 
                                                                 ; randomly choose two characters for player 2 char A and B
                                                                 ; fill up player 2 char A stats buffer with character dictionary + 3rd char select buffer
@@ -125,17 +173,12 @@ check_input_char_select:
         jp start_battle
         ret
 
-dummy_fill_display_attributes:
-        ld hl, empty_third_attr_buf
-        ld de, $5800
-        ld bc, 256
-        ldir
-        ld hl, empty_third_attr_buf
-        ld bc, 256
-        ldir
-        ld hl, empty_third_attr_buf
-        ld bc, 256
-        ldir
+;;; called by input handler after system indicates that it has accepted the moves the player has made
+;;; will first randomly do moves for the enemy characters
+;;; then will loop to calculate the state of the current attack and then call the animation loop
+;;; animation loop should ret and then the continue this loop for the next attack
+;;; after all 4 attacks have resolved-animated-resolved-animated, we jump back into main_loop
+action_resolve:
         ret
 
 ;;; copies a character sprite onto the menu third (specifically to that buffer)
@@ -220,7 +263,8 @@ handle_input_read_keys_in_row:
 handle_input_load_read_key:
         ld a, (hl)
 handle_input_end_read:                                          ; a holds the pressed key
-        cp (last_input)
+        ld hl, last_input
+        cp (hl)
         jr z, handle_input_unchanged
         cp 'A'
         jr z, handle_input_a
@@ -238,40 +282,45 @@ handle_input_end_read:                                          ; a holds the pr
         ;;jr z, handle_input_none
 handle_input_none:
         ld de, $3D00
-        ld (last_input), a
+        ld hl, last_input
+        ld (hl), a
         jp handle_input_print_char
 handle_input_a:
         call short_beep
         ld de, $3E08
-        ld (last_input), a
+        ld hl, last_input
+        ld (hl), a
         jp handle_input_print_char
 handle_input_s:
         call short_beep
         ld de, $3E98
-        ld (last_input), a
+        ld hl, last_input
+        ld (hl), a
         jp handle_input_print_char
 handle_input_d:
         call short_beep
         ld de, $3E20
-        ld (last_input), a
+        ld hl, last_input
+        ld (hl), a
         jp handle_input_print_char
 handle_input_w:
-        
         call short_beep
         ld de, $3EB8
-        ld (last_input), a
+        ld hl, last_input
+        ld (hl), a
         jp handle_input_print_char
 handle_input_enter:
         call short_beep
         ld de, $3F28
-        ld (last_input), a
+        ld hl, last_input
+        ld (hl), a
         jp handle_input_print_char
 handle_input_shift:
         ld de, $3F98
-        ld (last_input), a
+        ld hl, last_input
+        ld (hl), a
         jp handle_input_print_char
 handle_input_print_char:
-        ;;ld de, $3D80
         ld hl, $0045
         call print_char_to_menu
 handle_input_unchanged:
@@ -281,6 +330,10 @@ handle_input_unchanged:
 ; Beep duration can be increased by increasing value loaded into C
 ; Beep pitch is increased by decreasing values loaded into B and vice versa
 short_beep:
+    push af
+    push bc
+    push de
+    push hl
     ld c, 100
     di
 loop:
@@ -289,22 +342,24 @@ loop:
     ld b,100
 delay1:
     djnz delay1
-
     xor a
     out ($fe), a
     ld b,100
 delay2:
     djnz delay2
-
     dec c
     jp nz, loop
-    
     ei
+    pop hl
+    pop de
+    pop bc
+    pop af
     ret 
 
 ; ########################################################################################################
 ; ################################################ DATA ##################################################
 ; ########################################################################################################
+
 
 char_select_var:
         defb $00
@@ -316,8 +371,17 @@ char_select_p2_c1:
         defb $00
 char_select_p2_c2:
         defb $00
+
+;;; buffer to keep track of the input (or lack thereof) of the last frame
 last_input:
-        defb $00                                                ; buffer to keep track of the input (or lack thereof) of the last frame
+        defb $00
+
+;;; Menu State Variables - keeps track of the players turn, what menu to show, and the cursor
+menu_state_char_turn:
+        defb $00                                                ; 0 = p1_c1, 1 = p1_c2, 2 = p2_c1, 3 = p2_c2
+menu_state_var1:
+        defb $00                                                ; 4 most sig bits = which menu (by index); 4 least sig bits = cursor
+
 
 ;;; Char Dictionary (6 bytes x 6 characters): < HP, Armor, MR, move1 offset, move2 offset, move3 offset >
 char_data:  
@@ -351,48 +415,115 @@ move_dictionary:
 	defb $04, $06, $00 ,$ff, $68, $78, $b0, $28, $78, $88, $ff, $ff, $ff
 	defb $01, $01, $03 ,$ff, $68, $78, $b0, $28, $78, $90, $ff, $ff, $ff
 	
-;;; (12 bytes x 4 characters) < HP, Armor, MR, 16 bit memory for move 1, 16 bit memory for move 2, 16 bit memory for move 3. 16 bit queued move, Queued Target>
+;;; (12 bytes x 4 characters) < HP, Armor, MR, move1 offset, move2 offset, move3 offset. Queued Move, Queued Target>
 in_battle_chars:
-	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00
 move_order:
 	defb $00, $00
 in_battle_moves: ; <move address (16 bit), subject, target>
 	defb $00, $00, $00, $00
 
-
-empty_third_px_buf:
-        defs 2048, $00                                          ;      < pixels >
-empty_third_attr_buf:
-        defs 256, $07                                           ;    < attributes >
-
 bordered_third_px_buf:
-        defs 32, $ff                                            ;          ^ 
-        defs 192, $00                                           ;
-        defs 32, $ff                                            ;-
-        defs 32, $ff                                            ;
-        defs 192, $00                                           ;
-        defs 32, $ff                                            ;-
-        defs 32, $ff                                            ;
-        defs 192, $00                                           ;
-        defs 32, $ff                                            ;-
-        defs 32, $ff                                            ;
-        defs 192, $00                                           ;      < pixels >
-        defs 32, $ff                                            ;- ((0-31) + (0-7)*256) + (0 or 224)
-        defs 32, $ff                                            ;   
-        defs 192, $00                                           ;
-        defs 32, $ff                                            ;-
-        defs 32, $ff                                            ;
-        defs 192, $00                                           ;
-        defs 32, $ff                                            ;-
-        defs 32, $ff                                            ;
-        defs 192, $00                                           ;
-        defs 32, $ff                                            ;-
-        defs 32, $ff                                            ;
-        defs 192, $00                                           ;          
-        defs 32, $ff                                            ;-         v
+        defs 33, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 66, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 66, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 66, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 66, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 66, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 66, $ff 
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 66, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 2, $ff
+        defs 30, $00
+        defs 33, $ff
 bordered_third_attr_buf:
         defs 256, $04                                           ;    < attributes >
 
