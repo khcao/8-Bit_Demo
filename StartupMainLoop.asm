@@ -8,8 +8,8 @@ startup:
         ld hl, char_select_p1_c1                                ; Player 1 Char A
         ld (hl), -1
         inc hl
-        ld (hl), -1 					        ; Player 1 Char B
-        ld hl, char_select_var                                  ; &Character_Select_Var
+        ld (hl), -1 					                        ; Player 1 Char B
+        ld hl, char_select_var                                  ; Character_Select_Var
         ld (hl), 0
         call draw_char_select                     
         ;; jp char_select_loop
@@ -139,7 +139,7 @@ start_battle:
 
                                                                 ; read char stat buffers and draw into actual display in the data (top) third (note: only call this again after a call into the animation/actionResolve section)
 
-        ;call update_menu_buffer                                 ; read menu state and draw into screen buffer of menu (bottom) third (only call this again after an interpretation of input)
+        call update_menu_buffer                                 ; read menu state and draw into screen buffer of menu (bottom) third (only call this again after an interpretation of input)
         
 main_loop:
                                                                 ; jump if animateBool is true (to the animation/actionResolve section)
@@ -236,7 +236,9 @@ action_resolve:
 ;;; de - address of the character sprite in ROM; hl - address relative to the px buffer (0-2047) where we want to put the character
 ;;; de: [$3d00, $3fff]                           hl: [$0000, $07ff]
 print_char_to_menu:
-        ld a, h                                               ; ensure hl is capped, h is the number of lines from the top of some cell
+        push hl
+        push de
+        ld a, h                                                 ; ensure hl is capped, h is the number of lines from the top of some cell
         and 7
         ld h, a
         ld a, 8                                                 ; check how many lines from bottom of cell
@@ -283,6 +285,8 @@ print_char_to_menu_bot_cell_loop:
         dec bc
         jp print_char_to_menu_bot_cell_loop
 print_char_to_menu_end:
+        pop de
+        pop hl
         ret
 
 ;;; copies a character sprite onto the data third (since no buffer, addresses to the screen) (can be used in general for display)
@@ -340,7 +344,7 @@ handle_input_a:
         ld hl, last_input                                       ; record currently read key as last_input
         ld (hl), a
         ld a, 0                                                 ; change menu/cursor
-        ;call handle_menu_change
+        call handle_menu_change
         call short_beep                                         ; beep once
         ld de, $3E08
         jp handle_input_print_char
@@ -348,7 +352,7 @@ handle_input_s:
         ld hl, last_input                                       ; record currently read key as last_input
         ld (hl), a
         ld a, 1                                                 ; change menu/cursor
-        ;call handle_menu_change
+        call handle_menu_change
         call short_beep                                         ; beep once
         ld de, $3E98
         jp handle_input_print_char
@@ -356,7 +360,7 @@ handle_input_d:
         ld hl, last_input                                       ; record currently read key as last_input
         ld (hl), a
         ld a, 0                                                 ; change menu/cursor
-        ;call handle_menu_change
+        call handle_menu_change
         call short_beep                                         ; beep once
         ld de, $3E20
         jp handle_input_print_char
@@ -364,7 +368,7 @@ handle_input_w:
         ld hl, last_input                                       ; record currently read key as last_input
         ld (hl), a
         ld a, 1                                                 ; change menu/cursor
-        ;call handle_menu_change
+        call handle_menu_change
         call short_beep                                         ; beep once
         ld de, $3EB8
         jp handle_input_print_char
@@ -385,7 +389,7 @@ handle_input_shift:
         ld de, $3F98
         jp handle_input_print_char
 handle_input_print_char:
-        ld hl, $0045
+        ld hl, $0000 ;;$0045
         call print_char_to_menu
 handle_input_unchanged:
         ret
@@ -405,18 +409,18 @@ handle_menu_change:
         jr z, handle_menu_change_shift
         jp handle_menu_change_end
 handle_menu_change_a_d:
-        ld hl, menu_state_var1                                  ; update the cursor: if on the left (cursor bits either 0000 or 0010) then change to right (0001 or 0011) and vice versa
+        ld hl, menu_state_var1                                  ; update the cursor: if on the left (cursor bits either 00 or 10) then change to right (01 or 11) and vice versa
         ld a, (hl)
         xor $01
         ld (hl), a
-        ;call update_menu_buffer                                 ; update menu visuals
+        call update_menu_buffer                                 ; update menu visuals
         jp handle_menu_change_end
 handle_menu_change_w_s:
-        ld hl, menu_state_var1                                  ; update the cursor: if on the top (cursor bits either 0000 or 0001) then change to bottom (0010 or 0011) and vice versa
+        ld hl, menu_state_var1                                  ; update the cursor: if on the top (cursor bits either 00 or 01) then change to bottom (10 or 11) and vice versa
         ld a, (hl)
         xor $02
         ld (hl), a
-        ;call update_menu_buffer                                 ; update menu visuals
+        call update_menu_buffer                                 ; update menu visuals
         jp handle_menu_change_end
 handle_menu_change_enter:
         ld hl, menu_state_var1                                  ; check menu and cursor and check if action is valid
@@ -461,11 +465,9 @@ update_menu_buffer_clear_preloop:
         ld c, 10                                                ; b indicates which quadrant of the menu, c is the number of characters to clear out
 update_menu_buffer_clear_loop:
         ld de, $3D00
-        push hl
         push bc
         call print_char_to_menu
         pop bc
-        pop hl
         dec c
         inc hl
         ld a, c                                                 ; loop back for 10 characters
@@ -481,6 +483,7 @@ update_menu_buffer_clear_loop:
         jr z, update_menu_buffer_clear_3rd_quad
         cp 3
         jr z, update_menu_buffer_clear_4th_quad
+        jp update_menu_buffer_clear_end
 update_menu_buffer_clear_4th_quad:
         ld hl, $00D1
         jp update_menu_buffer_clear_preloop
@@ -491,11 +494,44 @@ update_menu_buffer_clear_3rd_quad:
         ld hl, $00C2
         jp update_menu_buffer_clear_preloop
 update_menu_buffer_clear_end:
-        ld hl, in_battle_chars                                  ; populate the menu's text entries based on the current characters' turn and the current menu state
-        
+        ld hl, menu_state_var1                                  ; populate the menu's text entries based on the current characters' turn and the current menu state
+        ld a, (hl)                                              ; load the number of entries of the current menu into b
+        and $0C
+        rrca
+        rrca
+        ld b, a
+        ld a, (hl)                                              ; load the menu index into a
+        and $30
+        rrca
+        rrca
+        rrca
+        rrca
+        cp $00                                                  ; if we're on a default menu
+        jr z, update_menu_buffer_default_menu
+        cp $01                                                  ; if we're on an act menu
+        jr z, update_menu_buffer_act_menu
+        cp $02                                                  ; if we're on an item menu
+        jr z, update_menu_buffer_item_menu
+        cp $03                                                  ; if we're on a target menu
+        jr z, update_menu_buffer_target_menu
+        jp update_menu_buffer_text_update_end
+update_menu_buffer_default_menu:
+        ld hl, $0042                                            ; print "act"
+        ld de, act_text
+        call print_10_to_menu_buf
+        ld hl, $0051                                            ; print "items"
+        ld de, item_text
+        call print_10_to_menu_buf
+        jp update_menu_buffer_text_update_end
+update_menu_buffer_act_menu:
 
+        jp update_menu_buffer_text_update_end
+update_menu_buffer_item_menu:
 
+        jp update_menu_buffer_text_update_end
+update_menu_buffer_target_menu:
 
+update_menu_buffer_text_update_end:
         ld hl, menu_state_var1                                  ; update the attributes based on the cursor position
         ld a, (hl)
         and $03
@@ -506,46 +542,137 @@ update_menu_buffer_clear_end:
         jr z, update_menu_buffer_attr1
         cp 2
         jr z, update_menu_buffer_attr2
-update_menu_buffer_attr4:
-        ld hl, $80
+update_menu_buffer_attr3:
+        ld hl, $0090
+        ld b, 3                                                 ; b - loop through 3 lines
+        ld c, 15                                                ; c - loop through 15 attributes per line
+update_menu_buffer_attr3_loop:
         push hl
         add hl, de
         ld a, (hl)
-        or $80
+        xor $3F
         ld (hl), a
         pop hl
+        inc hl
+        dec c
+        jr nz, update_menu_buffer_attr3_loop
+        ld c, 15
+        ld de, 17                                               ; move hl to the beginning of the next line
+        add hl, de
+        ld de, menu_third_attr_buf
+        dec b
+        jr nz, update_menu_buffer_attr3_loop
         jp update_menu_buffer_attr_end
 update_menu_buffer_attr0:
-        ld hl, $00
+        ld hl, $0021                                            ; start on the second line on the second character with our attr buf offset
+        ld b, 3                                                 ; b - loop through 3 lines
+        ld c, 15                                                ; c - loop through 15 attributes per line
+update_menu_buffer_attr0_loop:
         push hl
         add hl, de
         ld a, (hl)
-        or $80
+        xor $3F
         ld (hl), a
         pop hl
+        inc hl
+        dec c
+        jr nz, update_menu_buffer_attr0_loop
+        ld c, 15
+        ld de, 17                                               ; move hl to the beginning of the next line
+        add hl, de
+        ld de, menu_third_attr_buf
+        dec b
+        jr nz, update_menu_buffer_attr0_loop
         jp update_menu_buffer_attr_end
 update_menu_buffer_attr1:
-        ld hl, $10
+        ld hl, $0030
+        ld b, 3                                                 ; b - loop through 3 lines
+        ld c, 15                                                ; c - loop through 15 attributes per line
+update_menu_buffer_attr1_loop:
         push hl
         add hl, de
         ld a, (hl)
-        or $80
+        xor $3F
         ld (hl), a
         pop hl
+        inc hl
+        dec c
+        jr nz, update_menu_buffer_attr1_loop
+        ld c, 15
+        ld de, 17                                               ; move hl to the beginning of the next line
+        add hl, de
+        ld de, menu_third_attr_buf
+        dec b
+        jr nz, update_menu_buffer_attr1_loop
         jp update_menu_buffer_attr_end
 update_menu_buffer_attr2:
-        ld hl, $90
+        ld hl, $0081
+        ld b, 3                                                 ; b - loop through 3 lines
+        ld c, 15                                                ; c - loop through 15 attributes per line
+update_menu_buffer_attr2_loop:
         push hl
         add hl, de
         ld a, (hl)
-        or $80
+        xor $3F
         ld (hl), a
         pop hl
+        inc hl
+        dec c
+        jr nz, update_menu_buffer_attr2_loop
+        ld c, 15
+        ld de, 17                                               ; move hl to the beginning of the next line
+        add hl, de
+        ld de, menu_third_attr_buf
+        dec b
+        jr nz, update_menu_buffer_attr2_loop
 update_menu_buffer_attr_end:
         pop de                                                  ; restore registers
         pop bc
         pop af
         pop hl
+        ret
+
+;;; prints 10 characters sequentially into the menu buffer (if they don't run off the line)
+;;; hl - location of the first character byte to write to in the menu buffer
+;;; de - location of the first "offset" byte in a sequence of 10 bytes
+;;; "offset" - defined as byte distance from the first byte of the character 'a' or 'A' in ROM
+print_10_to_menu_buf:
+        push af
+        push bc
+        push de
+        push hl
+        ld c, 10                                                ; c = counter for characters printed
+print_10_to_menu_buf_loop:
+        push de
+        push hl
+        ld h, d                                                 ; check if byte in de is $ff
+        ld l, e
+        ld a, (hl)
+        pop hl
+        cp $ff
+        jr z, print_10_to_menu_buf_skip
+        push hl
+        ld hl, $3E08                                            ; calculate the location in ROM for the sprite based on the offset in de
+        ld a, (de)
+        ld d, 0
+        ld e, a
+        add hl, de
+        ld d, h                                                 ; put ROM location of sprite of character into de
+        ld e, l
+        pop hl                                                  ; regain the location to write to in the menu buffer
+        push bc
+        call print_char_to_menu
+        pop bc
+print_10_to_menu_buf_skip:
+        pop de
+        inc hl                                                  ; move horizontally (hopefully) one character over
+        inc de                                                  ; move the character sequence over one byte
+        dec c                                                   ; check if we can finish
+        jr nz, print_10_to_menu_buf_loop
+        pop hl
+        pop de
+        pop bc
+        pop af
         ret
 
 
@@ -602,7 +729,7 @@ last_input:
 menu_state_char_turn:
         defb $00                                                ; 0 = p1_c1, 1 = p1_c2, 2 = p2_c1, 3 = p2_c2
 menu_state_var1:
-        defb $0C                                                ; 4 most sig bits = which menu (by index); 2 least sig bits = cursor position; middle 2 bits = number of choices on the current menu
+        defb $08                                                ; 4 most sig bits = which menu (by index); 2 least sig bits = cursor position; middle 2 bits = number of choices on the current menu
 
 
 ;;; Char Dictionary (6 bytes x 6 characters): < HP, Armor, MR, move1 offset, move2 offset, move3 offset >
@@ -747,7 +874,7 @@ bordered_third_px_buf:
         defs 30, $00
         defs 33, $ff
 bordered_third_attr_buf:
-        defs 256, $04                                           ;    < attributes >
+        defs 256, $07                                           ;    < attributes >
 
 visual_third_px_buf:
         defs 2048, $00                                          ;      < pixels >
@@ -758,6 +885,16 @@ menu_third_px_buf:
         defs 2048, $00                                          ;      < pixels >
 menu_third_attr_buf:
         defs 256, $07                                           ;    < attributes >
+
+;;; text, as offsets to the 8byte characters in ROM (starting with A $3E08), $ff being space
+act_text:
+        defb $ff, $00, $10, $98, $ff, $ff, $ff, $ff, $ff, $ff
+item_text:
+        defb $ff, $40, $98, $20, $60, $90, $ff, $ff, $ff, $ff
+enemy1_text:
+        defb $ff, $20, $68, $20, $60, $C0, $ff, $00, $ff, $ff
+enemy2_text:
+        defb $ff, $20, $68, $20, $60, $C0, $ff, $08, $ff, $ff
 
 keymap:
         defb $fe, 's', 'Z', 'X', 'C', 'V'
