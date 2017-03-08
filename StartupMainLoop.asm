@@ -51,40 +51,40 @@ start_battle:
         ld hl, char_select_p1_c1
         ld a, (hl)                                              ; try to have char_index to be [0,5] (6 and 7 results in undefined behavior)
         and 7
-        ld (hl), a                                              ; multiply by 6 to get the offset from the character dictionary into a
-        rlca
-        rlca
-        add a, (hl)
-        add a, (hl)
+        ld (hl), a
+        ld h, 0                                                 ; take the character index in a and multiply it by 6 to get the byte offset from the beginning of the dictionary to the exact character we want
+        ld l, a
+        ld de, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
+        ld a, l                                                 ; NOTE: any carries are left in h
         ld hl, char_data                                        ; add the offset to char_data and put in hl the new address (= char_data + (6*char_index))
         ld b, 0
         ld c, a
         add hl, bc
         ld de, in_battle_chars                                  ; copy the data from the dictionary char_data into the data structure holding real-time player data
-        ld bc, 6
+        ld bc, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
         ldir
 
         ;;; fill up player 1 char B stats buffer with character dictionary + 2nd char select buffer
         ld hl, char_select_p1_c2
         ld a, (hl)                                              ; try to have char_index to be [0,5] (6 and 7 results in undefined behavior)
         and 7
-        ld (hl), a                                              ; multiply by 6 to get the offset from the character dictionary into a
-        rlca
-        rlca
-        add a, (hl)
-        add a, (hl)
+        ld (hl), a
+        ld h, 0                                                 ; take the character index in a and multiply it by 6 to get the byte offset from the beginning of the dictionary to the exact character we want
+        ld l, a
+        ld de, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
+        ld a, l                                                 ; NOTE: any carries are left in h
         ld hl, char_data                                        ; add the offset to char_data and put in hl the new address (= char_data + (6*char_index))
         ld b, 0
         ld c, a
         add hl, bc
         push hl                                                 ; calculate the address of the second data structure holding real-time player data
         ld hl, in_battle_chars
-        ld bc, 8
+        ld bc, 8                                                ; NOTE: IF SIZE OF AN ENTRY IN THE in_battle_char STRUCT CHANGES, CHANGE THIS NUMBER TO MATCH IT
         add hl, bc
         ld d, h
         ld e, l
-        pop hl                                                 ; copy the data from the dictionary char_data into the data structure holding real-time player data
-        ld bc, 6
+        pop hl                                                  ; copy the data from the dictionary char_data into the data structure holding real-time player data
+        ld bc, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
         ldir
 
                                                                 ; randomly choose two characters for player 2 char A and B
@@ -93,46 +93,46 @@ start_battle:
         ld hl, char_select_p2_c1
         ld a, (hl)                                              ; try to have char_index to be [0,5] (6 and 7 results in undefined behavior)
         and 7
-        ld (hl), a                                              ; multiply by 6 to get the offset from the character dictionary into a
-        rlca
-        rlca
-        add a, (hl)
-        add a, (hl)
+        ld (hl), a
+        ld h, 0                                                 ; take the character index in a and multiply it by 6 to get the byte offset from the beginning of the dictionary to the exact character we want
+        ld l, a
+        ld de, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
+        ld a, l                                                 ; NOTE: any carries are left in h
         ld hl, char_data                                        ; add the offset to char_data and put in hl the new address (= char_data + (6*char_index))
         ld b, 0
         ld c, a
         add hl, bc
         push hl                                                 ; calculate the address of the second data structure holding real-time player data
         ld hl, in_battle_chars
-        ld bc, 16
+        ld bc, 16                                               ; NOTE: IF SIZE OF AN ENTRY IN THE in_battle_char STRUCT CHANGES, CHANGE THIS NUMBER TO MATCH 2x IT
         add hl, bc
         ld d, h
         ld e, l
-        pop hl                                                 ; copy the data from the dictionary char_data into the data structure holding real-time player data
-        ld bc, 6
+        pop hl                                                  ; copy the data from the dictionary char_data into the data structure holding real-time player data
+        ld bc, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
         ldir
 
         ;;; fill up player 2 char B stats buffer with character dictionary + 4th char select buffer
         ld hl, char_select_p2_c2
         ld a, (hl)                                              ; try to have char_index to be [0,5] (6 and 7 results in undefined behavior)
         and 7
-        ld (hl), a                                              ; multiply by 6 to get the offset from the character dictionary into a
-        rlca
-        rlca
-        add a, (hl)
-        add a, (hl)
+        ld (hl), a
+        ld h, 0                                                 ; take the character index in a and multiply it by 6 to get the byte offset from the beginning of the dictionary to the exact character we want
+        ld l, a
+        ld de, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
+        ld a, l                                                 ; NOTE: any carries are left in h
         ld hl, char_data                                        ; add the offset to char_data and put in hl the new address (= char_data + (6*char_index))
         ld b, 0
         ld c, a
         add hl, bc
         push hl                                                 ; calculate the address of the second data structure holding real-time player data
         ld hl, in_battle_chars
-        ld bc, 24
+        ld bc, 24                                               ; NOTE: IF SIZE OF AN ENTRY IN THE in_battle_char STRUCT CHANGES, CHANGE THIS NUMBER TO MATCH 3x IT
         add hl, bc
         ld d, h
         ld e, l
-        pop hl                                                 ; copy the data from the dictionary char_data into the data structure holding real-time player data
-        ld bc, 6
+        pop hl                                                  ; copy the data from the dictionary char_data into the data structure holding real-time player data
+        ld bc, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
         ldir
 
                                                                 ; initialize game states in game state buffer
@@ -302,7 +302,7 @@ handle_input:
 handle_input_read_rows:
         ld b, (hl)                                              ; grab keyboard port from first column in the keymap
         inc hl                                                  ; move over to the asciis of that port/key-row
-        in a, (c)                                               ; read the row fo keys
+        in a, (c)                                               ; read the row of keys
         and $1f                                                 ; grab the 5 bits of the read row
         ld e, 5                                                 ; load number of keys in the row into e
 handle_input_read_keys_in_row:
@@ -376,7 +376,7 @@ handle_input_enter:
         ld hl, last_input                                       ; record currently read key as last_input
         ld (hl), a
         ld a, 2                                                 ; change menu/cursor
-        ;call handle_menu_change
+        call handle_menu_change
         call short_beep                                         ; beep once
         ld de, $3F28
         jp handle_input_print_char
@@ -423,31 +423,89 @@ handle_menu_change_w_s:
         call update_menu_buffer                                 ; update menu visuals
         jp handle_menu_change_end
 handle_menu_change_enter:
-        ld hl, menu_state_var1                                  ; check menu and cursor and check if action is valid
-        ld a, (hl)                                              ; check cursor position; save in b
-        and $03
-        ld b, a
-        ld a, (hl)                                              ; check num choices
-        and $0C
-        rrca
-        rrca
-        cp b                                                    ; if cursor is greater than num choices (i.e. if a < b or this compare results in the c flag set)
-        jr c, handle_menu_change_end                            ; then do nothing, this is an invalid enter input
-
-
-
-        ;call update_menu_buffer                                 ; update menu visuals
+        ;ld hl, menu_state_var1                                  ; check menu and cursor and check if action is valid
+        ;ld a, (hl)                                              ; check cursor position; save in b
+        ;and $03
+        ;ld b, a
+        ;ld a, (hl)                                              ; check num choices
+        ;and $0C
+        ;rrca
+        ;rrca
+        ;cp b                                                    ; if cursor is greater than num choices (i.e. if a < b or this compare results in the c flag set)
+        ;jr c, handle_menu_change_end                            ; then do nothing, this is an invalid enter input
+        call change_menu_on_enter                               ; else, call the menu enter check thing
+        call update_menu_buffer                                 ; update menu visuals
         jp handle_menu_change_end
 handle_menu_change_shift:
 
-
-
-        ;call update_menu_buffer                                 ; update menu visuals
+        ;call update_menu_buffer                                ; update menu visuals
 handle_menu_change_end:
         pop de                                                  ; no matter what, restore register states
         pop bc
         pop hl
         pop af
+        ret
+
+change_menu_on_enter:
+        ld hl, menu_state_var1
+        ld a, (hl)
+        and $03
+        ld b, a
+        ld a, (hl)
+        and $F0
+        rrca
+        rrca
+        rrca
+        rrca
+        cp $01                                                 ; if on the act menu
+        jr z, change_menu_on_enter_act
+        cp $02                                                 ; if on the items menu
+        jr z, change_menu_on_enter_item
+        cp $03                                                 ; if on the target menu
+        jr z, change_menu_on_enter_target
+change_menu_on_enter_default:
+        ld a, b                                                 ; where is the cursor on the default menu
+        cp $00
+        jr z, change_menu_on_enter_default0
+        cp $01
+        jr z, change_menu_on_enter_default1
+change_menu_on_enter_default2:
+        jp change_menu_on_enter_end
+change_menu_on_enter_default0:
+        ld hl, menu_state_var1
+        ld a, (hl)
+        and $FC                                                 ; move cursor to first position
+        or $0C                                                  ; act menu always has 4 entries, note the number of entries in that part of the byte
+        or $10                                                  ; finally, change the top 4 bits to be 0001
+        and $1F                                                 ; while keeping changes from before
+        ld (hl), a
+        jp change_menu_on_enter_end
+change_menu_on_enter_default1:
+        ;ld hl, menu_state_var1
+        ;ld a, (hl)
+        ;and $FC                                                 ; move cursor to ;first position
+        ;or $0C                                                  ; NOTE: CHANGE THE NUMBER OF ENTRIES HERE, WE DUNNO YET
+        ;or $20                                                  ; finally, change ;the top 4 bits to be 0010
+        ;and $2F                                                 ; while keeping changes from before
+        ld (hl), a
+        jp change_menu_on_enter_end
+change_menu_on_enter_act:
+        ld a, b                                                 ; where is the cursor on the act menu
+        cp $03
+        ;jr z, change_menu_on_enter_act3
+        ld hl, in_battle_chars
+        ld de, 3
+        add a, e
+
+        jp change_menu_on_enter_end
+change_menu_on_enter_item:
+
+        jp change_menu_on_enter_end
+change_menu_on_enter_target:
+
+        jp change_menu_on_enter_end
+change_menu_on_enter_end:
+        
         ret
 
 update_menu_buffer:
@@ -524,7 +582,7 @@ update_menu_buffer_default_menu:
         call print_10_to_menu_buf
         jp update_menu_buffer_text_update_end
 update_menu_buffer_act_menu:
-
+        call load_act_menu
         jp update_menu_buffer_text_update_end
 update_menu_buffer_item_menu:
 
@@ -630,6 +688,127 @@ update_menu_buffer_attr_end:
         pop bc
         pop af
         pop hl
+        ret
+
+;;; prints the text in the menu corresponding to the current character turn
+load_act_menu:
+        push af
+        push bc
+        push de
+        push hl
+        ld hl, menu_state_char_turn                             ; check whose turn it is
+        ld a, (hl)
+        and $03
+        cp 0
+        jr z, load_act_menu_c1
+load_act_menu_c2:
+        ld hl, in_battle_chars
+        ld d, 0
+        ld e, 11                                                ; 2nd character so 8 bytes to skip first character, 3 bytes to skip first 3 stats
+        add hl, de
+        ld b, 0
+        ld c, 0
+load_act_menu_c2_loop:
+        ld a, (hl)                                              ; a = move index for p1_c2
+        push hl                                                 ; save the location of the move index in the move list of the character
+        ld h, 0                                                 ; each move in the move dictionary is described in 13 bytes; move to the exact byte of the move indexed in a
+        ld l, a
+        ld de, 13                                               ; NOTE: IF SIZE OF AN ENTRY IN THE MOVE DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
+        call simple_multiply
+        ld d, h                                                 ; keep the calculated offset in de
+        ld e, l
+        ld hl, move_dictionary                                  ; add the offset to move_dictionary
+        add hl, de                                              ; now hl points to the exact move in the move dictionary that the current character has
+        ld d, 0
+        ld e, 3
+        add hl, de                                              ; move to the "name" section of that move by skipping 3 bytes of stats
+        ld d, h
+        ld e, l
+        ld hl, menu_third_px_buf_text_locations                 ; load the relative location in the pixel buffer of the menu third of the screen where we will print text
+        add hl, bc
+        ld l, (hl)
+        ld h, 0
+        ;;;;;;;;;;;;;ld hl, $0042
+        call print_10_to_menu_buf
+        pop hl                                                  ; regain the location of the move index of one move in the move list
+        inc hl                                                  ; move to the next move index on the move list
+        inc c                                                   ; check if we've done this three times
+        ld a, c
+        cp 3
+        jr nz, load_act_menu_c2_loop                            ; loop 3 times
+        jp load_act_menu_end
+load_act_menu_c1:
+        ld hl, in_battle_chars
+        ld d, 0
+        ld e, 3                                                 ; 1st character so just skip 3 bytes of stats
+        add hl, de
+        ld b, 0
+        ld c, 0
+load_act_menu_c1_loop:
+        ld a, (hl)                                              ; a = move index for p1_c1
+        push hl                                                 ; save the location of the move index in the move list of the character
+        ld h, 0                                                 ; each move in the move dictionary is described in 13 bytes; move to the exact byte of the move indexed in a
+        ld l, a
+        ld de, 13                                               ; NOTE: IF SIZE OF AN ENTRY IN THE MOVE DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
+        call simple_multiply
+        ld d, h                                                 ; keep the calculated offset in de
+        ld e, l
+        ld hl, move_dictionary                                  ; add the offset to move_dictionary
+        add hl, de                                              ; now hl points to the exact move in the move dictionary that the current character has
+        ld d, 0
+        ld e, 3
+        add hl, de                                              ; move to the "name" section of that move by skipping 3 bytes of stats
+        ld d, h
+        ld e, l
+        ld hl, menu_third_px_buf_text_locations                 ; load the relative location in the pixel buffer of the menu third of the screen where we will print text
+        add hl, bc
+        ld l, (hl)
+        ld h, 0
+        ;;;;;;;;;;;;;ld hl, $0042
+        call print_10_to_menu_buf
+        pop hl                                                  ; regain the location of the move index of one move in the move list
+        inc hl                                                  ; move to the next move index on the move list
+        inc c                                                   ; check if we've done this three times
+        ld a, c
+        cp 3
+        jr nz, load_act_menu_c1_loop                            ; loop 3 times
+load_act_menu_end:
+        ld hl, move_dictionary                                  ; load in the fourth quadrant, a default attack to any character
+        ld bc, 3
+        add hl, bc
+        ld d, h
+        ld e, l
+        ld hl, menu_third_px_buf_text_locations
+        add hl, bc
+        ld l, (hl)
+        ld h, 0
+        call print_10_to_menu_buf
+
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ret
+
+;;; multiplies hl by de, does not give a den about carry and overflow, returns result in hl
+simple_multiply:
+        push af
+        push bc
+        push de
+        ld b, h
+        ld c, l
+        ld hl, 0
+simple_multiply_loop:
+        ld a, d                                                 ; check if de is 0
+        or e
+        jr z, simple_multiply_end                               ; return hl if so
+        add hl, bc
+        dec de
+        jr simple_multiply_loop
+simple_multiply_end:
+        pop de
+        pop bc
+        pop af
         ret
 
 ;;; prints 10 characters sequentially into the menu buffer (if they don't run off the line)
@@ -745,24 +924,24 @@ char_data:
 ;;; < cd, type, value, 10-byte name (offset from a-8, ff = space)>
 ;;; < (13 bytes x 18 skills) In character order >	
 move_dictionary:
-	defb $01, $07, $02 ,$ff, $68, $78, $b0, $28, $78, $08, $ff, $ff, $ff
-	defb $01, $01, $02 ,$ff, $68, $78, $b0, $28, $78, $10, $ff, $ff, $ff
-	defb $04, $03, $05 ,$ff, $68, $78, $b0, $28, $78, $18, $ff, $ff, $ff
-	defb $01, $05, $02 ,$ff, $68, $78, $b0, $28, $78, $20, $ff, $ff, $ff
-	defb $01, $03, $02 ,$ff, $68, $78, $b0, $28, $78, $28, $ff, $ff, $ff
-	defb $04, $04, $05 ,$ff, $68, $78, $b0, $28, $78, $30, $ff, $ff, $ff
-	defb $04, $05, $04 ,$ff, $68, $78, $b0, $28, $78, $38, $ff, $ff, $ff
-	defb $01, $04, $02 ,$ff, $68, $78, $b0, $28, $78, $40, $ff, $ff, $ff
-	defb $01, $01, $02 ,$ff, $68, $78, $b0, $28, $78, $48, $ff, $ff, $ff
-	defb $04, $05, $05 ,$ff, $68, $78, $b0, $28, $78, $50, $ff, $ff, $ff
-	defb $01, $01, $03 ,$ff, $68, $78, $b0, $28, $78, $58, $ff, $ff, $ff
-	defb $01, $02, $03 ,$ff, $68, $78, $b0, $28, $78, $60, $ff, $ff, $ff
-	defb $04, $02, $08 ,$ff, $68, $78, $b0, $28, $78, $68, $ff, $ff, $ff
-	defb $01, $02, $04 ,$ff, $68, $78, $b0, $28, $78, $70, $ff, $ff, $ff
-	defb $01, $04, $03 ,$ff, $68, $78, $b0, $28, $78, $78, $ff, $ff, $ff
-	defb $02, $01, $05 ,$ff, $68, $78, $b0, $28, $78, $80, $ff, $ff, $ff
-	defb $04, $06, $00 ,$ff, $68, $78, $b0, $28, $78, $88, $ff, $ff, $ff
-	defb $01, $01, $03 ,$ff, $68, $78, $b0, $28, $78, $90, $ff, $ff, $ff
+	defb $01, $07, $02 ,$ff, $60, $70, $a8, $20, $ff, $00, $ff, $ff, $ff
+	defb $01, $01, $02 ,$ff, $60, $70, $a8, $20, $ff, $08, $ff, $ff, $ff
+	defb $04, $03, $05 ,$ff, $60, $70, $a8, $20, $ff, $10, $ff, $ff, $ff
+	defb $01, $05, $02 ,$ff, $60, $70, $a8, $20, $ff, $18, $ff, $ff, $ff
+	defb $01, $03, $02 ,$ff, $60, $70, $a8, $20, $ff, $20, $ff, $ff, $ff
+	defb $04, $04, $05 ,$ff, $60, $70, $a8, $20, $ff, $28, $ff, $ff, $ff
+	defb $04, $05, $04 ,$ff, $60, $70, $a8, $20, $ff, $30, $ff, $ff, $ff
+	defb $01, $04, $02 ,$ff, $60, $70, $a8, $20, $ff, $38, $ff, $ff, $ff
+	defb $01, $01, $02 ,$ff, $60, $70, $a8, $20, $ff, $40, $ff, $ff, $ff
+	defb $04, $05, $05 ,$ff, $60, $70, $a8, $20, $ff, $48, $ff, $ff, $ff
+	defb $01, $01, $03 ,$ff, $60, $70, $a8, $20, $ff, $50, $ff, $ff, $ff
+	defb $01, $02, $03 ,$ff, $60, $70, $a8, $20, $ff, $58, $ff, $ff, $ff
+	defb $04, $02, $08 ,$ff, $60, $70, $a8, $20, $ff, $60, $ff, $ff, $ff
+	defb $01, $02, $04 ,$ff, $60, $70, $a8, $20, $ff, $68, $ff, $ff, $ff
+	defb $01, $04, $03 ,$ff, $60, $70, $a8, $20, $ff, $70, $ff, $ff, $ff
+	defb $02, $01, $05 ,$ff, $60, $70, $a8, $20, $ff, $78, $ff, $ff, $ff
+	defb $04, $06, $00 ,$ff, $60, $70, $a8, $20, $ff, $80, $ff, $ff, $ff
+	defb $01, $01, $03 ,$ff, $60, $70, $a8, $20, $ff, $88, $ff, $ff, $ff
 	
 ;;; (8 bytes x 4 characters) < HP, Armor, MR, move1 offset, move2 offset, move3 offset. Queued Move, Queued Target>
 in_battle_chars:
@@ -885,6 +1064,10 @@ menu_third_px_buf:
         defs 2048, $00                                          ;      < pixels >
 menu_third_attr_buf:
         defs 256, $07                                           ;    < attributes >
+
+;;; the relative location in the pixel buffer of the menu third of the screen where text is printed (relative as in offsets from 0)
+menu_third_px_buf_text_locations:
+        defb $42, $51, $C2, $D1
 
 ;;; text, as offsets to the 8byte characters in ROM (starting with A $3E08), $ff being space
 act_text:
