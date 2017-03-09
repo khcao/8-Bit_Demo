@@ -55,6 +55,7 @@ start_battle:
         ld h, 0                                                 ; take the character index in a and multiply it by 6 to get the byte offset from the beginning of the dictionary to the exact character we want
         ld l, a
         ld de, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
+        call simple_multiply
         ld a, l                                                 ; NOTE: any carries are left in h
         ld hl, char_data                                        ; add the offset to char_data and put in hl the new address (= char_data + (6*char_index))
         ld b, 0
@@ -72,6 +73,7 @@ start_battle:
         ld h, 0                                                 ; take the character index in a and multiply it by 6 to get the byte offset from the beginning of the dictionary to the exact character we want
         ld l, a
         ld de, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
+        call simple_multiply
         ld a, l                                                 ; NOTE: any carries are left in h
         ld hl, char_data                                        ; add the offset to char_data and put in hl the new address (= char_data + (6*char_index))
         ld b, 0
@@ -97,6 +99,7 @@ start_battle:
         ld h, 0                                                 ; take the character index in a and multiply it by 6 to get the byte offset from the beginning of the dictionary to the exact character we want
         ld l, a
         ld de, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
+        call simple_multiply
         ld a, l                                                 ; NOTE: any carries are left in h
         ld hl, char_data                                        ; add the offset to char_data and put in hl the new address (= char_data + (6*char_index))
         ld b, 0
@@ -120,6 +123,7 @@ start_battle:
         ld h, 0                                                 ; take the character index in a and multiply it by 6 to get the byte offset from the beginning of the dictionary to the exact character we want
         ld l, a
         ld de, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
+        call simple_multiply
         ld a, l                                                 ; NOTE: any carries are left in h
         ld hl, char_data                                        ; add the offset to char_data and put in hl the new address (= char_data + (6*char_index))
         ld b, 0
@@ -137,7 +141,7 @@ start_battle:
 
                                                                 ; initialize game states in game state buffer
 
-                                                                ; read char stat buffers and draw into actual display in the data (top) third (note: only call this again after a call into the animation/actionResolve section)
+        call update_data                                        ; read char stat buffers and draw into actual display in the data (top) third (note: only call this again after a call into the animation/actionResolve section)
 
         call update_menu_buffer                                 ; read menu state and draw into screen buffer of menu (bottom) third (only call this again after an interpretation of input)
         
@@ -291,8 +295,59 @@ print_char_to_menu_end:
 
 ;;; copies a character sprite onto the data third (since no buffer, addresses to the screen) (can be used in general for display)
 ;;; (keep in mind, the middle and bottom thirds of the screen during our turn will be replaced by the buffer)
-;;; de - address of the character sprite in ROM; hl - address relative to the display ($4000-$5800) where we want to put the character
+;;; de - address of the character sprite in ROM; hl - address relative to the display [0-2047] where we want to put the character
 print_char_to_data:
+        push hl
+        push de
+        ld a, h                                                 ; ensure hl is capped, h is the number of lines from the top of some cell
+        and 7
+        ld h, a
+        ld a, 8                                                 ; check how many lines from bottom of cell
+        sub h
+        ld c, a                                                 ; load that num lines into bc (NOTE: this is always nonzero so first loop must happen no matter what)
+        ld b, 0
+        push hl                                                 ; push original num lines from top for use later (top_cell_loop messes with this)
+print_char_to_data_top_cell_loop:
+        push hl
+        push de                                                 ; compensate relative buffer address by adding it to the actual buffer address
+        ld de, $4000 ; menu_third_px_buf
+        add hl, de
+        pop de
+        ld a, (de)                                              ; copy byte from ROM to address into hl (the buffer)
+        ld (hl), a
+        pop hl
+        inc h                                                   ; move the buffer address one line down
+        inc de                                                  ; move the ROM address one byte over
+        dec bc                                                  ; check if we've finished the print on top cell
+        ld a, b
+        or c
+        jr nz, print_char_to_data_top_cell_loop                 ; if done with top, load remaining num lines in bottom cell
+        pop hl                                                  ; pop the original address
+        ld b, 0                                                 ; h is the number of lines left in the bottom cell, load that into bc
+        ld c, h
+        ld a, l                                                 ; move hl's address one cell down, first row of that cell
+        add a, 32
+        ld l, a
+        ld h, 0
+print_char_to_data_bot_cell_loop:
+        ld a, b                                                 ; check if there are no lines to print in this cell
+        or c
+        jr nz, print_char_to_data_end                           ; if not print the remaining lines
+        push hl
+        push de                                                 ; compensate relative buffer address by adding it to the actual buffer address
+        ld de, $4000 ; menu_third_px_buf
+        add hl, de
+        pop de
+        ld a, (de)
+        ld (hl), a
+        pop hl
+        inc h
+        inc de
+        dec bc
+        jp print_char_to_data_bot_cell_loop
+print_char_to_data_end:
+        pop de
+        pop hl
         ret
 
 handle_input:
@@ -483,19 +538,23 @@ change_menu_on_enter_default0:
 change_menu_on_enter_default1:
         ;ld hl, menu_state_var1
         ;ld a, (hl)
-        ;and $FC                                                 ; move cursor to ;first position
-        ;or $0C                                                  ; NOTE: CHANGE THE NUMBER OF ENTRIES HERE, WE DUNNO YET
-        ;or $20                                                  ; finally, change ;the top 4 bits to be 0010
-        ;and $2F                                                 ; while keeping changes from before
+        ;and $FC                                                ; move cursor to ;first position
+        ;or $0C                                                 ; NOTE: CHANGE THE NUMBER OF ENTRIES HERE, WE DUNNO YET
+        ;or $20                                                 ; finally, change ;the top 4 bits to be 0010
+        ;and $2F                                                ; while keeping changes from before
         ld (hl), a
         jp change_menu_on_enter_end
 change_menu_on_enter_act:
         ld a, b                                                 ; where is the cursor on the act menu
         cp $03
-        ;jr z, change_menu_on_enter_act3
+        jr z, change_menu_on_enter_act3                         ; jump to "struggle" if on fourth choice
         ld hl, in_battle_chars
         ld de, 3
         add a, e
+
+change_menu_on_enter_act3:
+
+change_menu_on_enter_act_end:
 
         jp change_menu_on_enter_end
 change_menu_on_enter_item:
@@ -543,13 +602,13 @@ update_menu_buffer_clear_loop:
         jr z, update_menu_buffer_clear_4th_quad
         jp update_menu_buffer_clear_end
 update_menu_buffer_clear_4th_quad:
-        ld hl, $00D1
+        ld hl, $00B1
         jp update_menu_buffer_clear_preloop
 update_menu_buffer_clear_2nd_quad:
         ld hl, $0051
         jp update_menu_buffer_clear_preloop
 update_menu_buffer_clear_3rd_quad:
-        ld hl, $00C2
+        ld hl, $00A2
         jp update_menu_buffer_clear_preloop
 update_menu_buffer_clear_end:
         ld hl, menu_state_var1                                  ; populate the menu's text entries based on the current characters' turn and the current menu state
@@ -854,6 +913,18 @@ print_10_to_menu_buf_skip:
         pop af
         ret
 
+update_data:
+        ld hl, $4000
+        ld de, $5800
+        call clear_third
+
+        ld hl, $0042
+        ld de, $3D08
+        call print_char_to_data
+
+
+        ret        
+
 
 ; Beep duration can be increased by increasing value loaded into C
 ; Beep pitch is increased by decreasing values loaded into B and vice versa
@@ -1067,7 +1138,7 @@ menu_third_attr_buf:
 
 ;;; the relative location in the pixel buffer of the menu third of the screen where text is printed (relative as in offsets from 0)
 menu_third_px_buf_text_locations:
-        defb $42, $51, $C2, $D1
+        defb $42, $51, $A2, $B1
 
 ;;; text, as offsets to the 8byte characters in ROM (starting with A $3E08), $ff being space
 act_text:
