@@ -5,13 +5,13 @@ begin:
 
 startup:
         call clear_background
-        ld hl, char_select_p1_c1                                ; Player 1 Char A
-        ld (hl), -1
-        inc hl
-        ld (hl), -1 					                        ; Player 1 Char B
-        ld hl, char_select_var                                  ; Character_Select_Var
-        ld (hl), 0
-        call draw_char_select                     
+        ;ld hl, char_select_p1_c1                                ; Player 1 Char A
+        ;ld (hl), -1
+        ;inc hl
+        ;ld (hl), -1 					                        ; Player 1 Char B
+        ;ld hl, char_select_var                                  ; Character_Select_Var
+        ;ld (hl), 0
+        ;call draw_char_select                     
         ;; jp char_select_loop
 
 char_select_loop:
@@ -56,10 +56,9 @@ start_battle:
         ld l, a
         ld de, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
         call simple_multiply
-        ld a, l                                                 ; NOTE: any carries are left in h
+        ld b, h
+        ld c, l
         ld hl, char_data                                        ; add the offset to char_data and put in hl the new address (= char_data + (6*char_index))
-        ld b, 0
-        ld c, a
         add hl, bc
         ld de, in_battle_chars                                  ; copy the data from the dictionary char_data into the data structure holding real-time player data
         ld bc, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
@@ -74,10 +73,9 @@ start_battle:
         ld l, a
         ld de, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
         call simple_multiply
-        ld a, l                                                 ; NOTE: any carries are left in h
+        ld b, h
+        ld c, l
         ld hl, char_data                                        ; add the offset to char_data and put in hl the new address (= char_data + (6*char_index))
-        ld b, 0
-        ld c, a
         add hl, bc
         push hl                                                 ; calculate the address of the second data structure holding real-time player data
         ld hl, in_battle_chars
@@ -100,10 +98,9 @@ start_battle:
         ld l, a
         ld de, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
         call simple_multiply
-        ld a, l                                                 ; NOTE: any carries are left in h
+        ld b, h
+        ld c, l
         ld hl, char_data                                        ; add the offset to char_data and put in hl the new address (= char_data + (6*char_index))
-        ld b, 0
-        ld c, a
         add hl, bc
         push hl                                                 ; calculate the address of the second data structure holding real-time player data
         ld hl, in_battle_chars
@@ -124,10 +121,9 @@ start_battle:
         ld l, a
         ld de, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
         call simple_multiply
-        ld a, l                                                 ; NOTE: any carries are left in h
+        ld b, h
+        ld c, l
         ld hl, char_data                                        ; add the offset to char_data and put in hl the new address (= char_data + (6*char_index))
-        ld b, 0
-        ld c, a
         add hl, bc
         push hl                                                 ; calculate the address of the second data structure holding real-time player data
         ld hl, in_battle_chars
@@ -146,7 +142,12 @@ start_battle:
         call update_menu_buffer                                 ; read menu state and draw into screen buffer of menu (bottom) third (only call this again after an interpretation of input)
         
 main_loop:
-                                                                ; jump if animateBool is true (to the animation/actionResolve section)
+        ld hl, menu_state_char_turn                             ; jump if current turn is for player 2 char 1 (i.e. menu_state_char_turn is $02) (to the animation/actionResolve section)
+        ld a, (hl)
+        cp $02                                                  ; if a < $02, then the c flag will be set; it's still our turn and we can't ActionResolve yet
+        jr c, main_loop_no_action
+        call action_resolve
+main_loop_no_action:
 
                                                                 ; check clock and read sprite idle data to animate visual (middle) third
 
@@ -234,6 +235,36 @@ check_input_char_select:
 ;;; after the animation loop returns, update the data third of the screen, then continue this loop for the next attack
 ;;; after all 4 attacks have resolved-animated-resolved-animated, we jump back into main_loop
 action_resolve:
+
+
+        ld hl, in_battle_chars                                  ; clear all targets and actions
+        ld de, 6
+        add hl, de
+        ld (hl), $00
+        inc hl
+        ld (hl), $00
+        inc hl                                                  ; clear for char 2
+        add hl, de
+        ld (hl), $00
+        inc hl
+        ld (hl), $00
+        inc hl                                                  ; clear for char 3
+        add hl, de
+        ld (hl), $00
+        inc hl
+        ld (hl), $00
+        inc hl                                                  ; clear for char 4
+        add hl, de
+        ld (hl), $00
+        inc hl
+        ld (hl), $00
+        inc hl
+        ld hl, menu_state_var1                                  ; return the states to the beginning of the turn
+        ld (hl), $08
+        ld hl, menu_state_char_turn
+        ld (hl), $00
+        call update_data
+        call update_menu_buffer
         ret
 
 ;;; copies a character sprite onto the menu third (specifically to that buffer)
@@ -439,7 +470,7 @@ handle_input_shift:
         ld hl, last_input                                       ; record currently read key as last_input
         ld (hl), a
         ld a, 3                                                 ; change menu/cursor
-        ;call handle_menu_change
+        call handle_menu_change
         call short_beep                                         ; beep once
         ld de, $3F98
         jp handle_input_print_char
@@ -492,8 +523,8 @@ handle_menu_change_enter:
         call update_menu_buffer                                 ; update menu visuals
         jp handle_menu_change_end
 handle_menu_change_shift:
-
-        ;call update_menu_buffer                                ; update menu visuals
+        call change_menu_on_shift
+        call update_menu_buffer                                 ; update menu visuals
 handle_menu_change_end:
         pop de                                                  ; no matter what, restore register states
         pop bc
@@ -501,6 +532,52 @@ handle_menu_change_end:
         pop af
         ret
 
+;;; changes the state variables of the menu based on valid inputs of shift
+;;; does NOT CHANGE VISUALS
+;;; does NOT RESTORE STATE OF REGISTERS BEFORE CALL
+change_menu_on_shift:
+        ld hl, menu_state_var1
+        ld a, (hl)
+        and $F0
+        rrca
+        rrca
+        rrca
+        rrca
+        cp $01
+        jr z, change_menu_on_shift_act
+        cp $02
+        jr z, change_menu_on_shift_item
+        cp $03
+        jr z, change_menu_on_shift_target
+change_menu_on_shift_default:
+        ld hl, menu_state_char_turn                             ; check whose turn it is
+        ld a, (hl)
+        cp $00                                                  ; if player 1 char 1, don't do anything
+        jp z, change_menu_on_shift_end
+        ld a, $00                                               ; if not, move back to player 1 char 1's turn
+        ld (hl), a
+        ld hl, menu_state_var1                                  ; also change the menu back to target and cursor back to position 1
+        ld (hl), $3C
+        jp change_menu_on_shift_end
+change_menu_on_shift_act:
+        ld hl, menu_state_var1                                  ; always move menu back to the default menu, regardless of whose turn it is
+        ld (hl), $08
+        jp change_menu_on_shift_end
+change_menu_on_shift_item:
+        ld hl, menu_state_var1                                  ; always move menu back to the default menu, regardless of whose turn it is
+        ld (hl), $08
+        jp change_menu_on_shift_end
+change_menu_on_shift_target:
+                                                                ; check if the selected attack of our current character is from item or act
+
+        ld hl, menu_state_var1                                  ; move back to that menu while not changing the turn
+        ld (hl), $1C                                            ; NOTE: FOR NOW WE ONLY HAVE ACT
+change_menu_on_shift_end:
+        ret
+
+;;; changes the state variables of the menu based on valid inputs of enter
+;;; does NOT CHANGE VISUALS
+;;; does NOT RESTORE STATE OF REGISTERS BEFORE CALL
 change_menu_on_enter:
         ld hl, menu_state_var1
         ld a, (hl)
@@ -548,25 +625,93 @@ change_menu_on_enter_act:
         ld a, b                                                 ; where is the cursor on the act menu
         cp $03
         jr z, change_menu_on_enter_act3                         ; jump to "struggle" if on fourth choice
-        ld hl, in_battle_chars
-        ld de, 3
-        add a, e
-
+        ld hl, menu_state_char_turn                             ; check whose turn it is (should be 0 or 1)
+        ld a, (hl)
+        and $01
+        ld de, 0
+        cp $00
+        jr z, change_menu_on_enter_act0_c1
+        ld de, 8                                                ; NOTE: If size of entries in in_battle_chars changes, change this
+change_menu_on_enter_act0_c1:
+        ld hl, in_battle_chars                                  ; move to either player 1 char 1 or player 1 char 2
+        add hl, de
+        push hl                                                 ; save the address of the character entry in in_battle_chars
+        ld de, 3                                                ; look up the move list of the character entry by skipping 3 bytes of stats
+        add hl, de
+        ld e, b                                                 ; offset this address into the move list by adding the cursor to it (ex: if the address points to the first move in the move list and the cursor is in the second position (i.e. $01) then the address moves over to the second move in the move list)
+        ld d, 0
+        add hl, de
+        ld a, (hl)                                              ; grab the move index at the address
+        pop hl                                                  ; regain the address of the character entry in in_battle_chars
+        ld de, 6                                                ; NOTE: If the distance to the "Queued Move" byte in the entries of in_battle_chars changes, then change this number
+        add hl, de                                              ; move to the queued move byte of that character data structure
+        ld (hl), a                                              ; queue the move index based on what moves this character had
+        jp change_menu_on_enter_act_end
 change_menu_on_enter_act3:
-
+        ld hl, menu_state_char_turn                             ; check whose turn it is (should be 0 or 1)
+        ld a, (hl)
+        and $01
+        ld de, 0
+        cp $00
+        jr z, change_menu_on_enter_act3_c1
+        ld de, 8                                                ; NOTE: If size of entries in in_battle_chars changes, change this
+change_menu_on_enter_act3_c1:
+        ld hl, in_battle_chars                                  ; move to either player 1 char 1 or player 1 char 2
+        add hl, de
+        ld de, 6                                                ; NOTE: If the distance to the "Queued Move" byte in the entries of in_battle_chars changes, then change this number
+        add hl, de                                              ; move to the queued move byte of that character data structure
+        ld (hl), $00                                            ; queue the default move
 change_menu_on_enter_act_end:
+        ld hl, menu_state_var1                                  ; change menu to the target menu
+        ld (hl), $3C
+
+        call update_data
 
         jp change_menu_on_enter_end
 change_menu_on_enter_item:
 
         jp change_menu_on_enter_end
 change_menu_on_enter_target:
-
-        jp change_menu_on_enter_end
-change_menu_on_enter_end:
+        ld hl, menu_state_var1                                  ; first, figure out what to save: establish which target based on cursor position
+        ld a, (hl)
+        and $03
+        ld b, a                                                 ; save this in b
+        ld hl, menu_state_char_turn                             ; next, figure out whose turn it is and jump to those cases
+        ld a, (hl)
+        and $03
+        cp $01
+        jp z, change_menu_on_enter_target_c2
+change_menu_on_enter_target_c1:
+        ld hl, in_battle_chars                                  ; if its the first character's turn, record his target and then change the menu state to the next character's turn
+        ld de, 7                                                ; NOTE: If the distance to the "Queued Target" byte in an entry to in_battle_chars changes, change this number
+        add hl, de                                              ; offset the address to point to the "Queued Target" byte of that entry in in_battle_chars
+        ld (hl), b                                              ; store into the in_battle_chars entry the queued target specified by the cursor
+        ld hl, menu_state_char_turn                             ; change to player 1 char 2's turn
+        ld (hl), $01
+        ld hl, menu_state_var1                                  ; change the menu to the default menu on default cursor position
+        ld (hl), $08
+        jp change_menu_on_enter_target_end
+change_menu_on_enter_target_c2:                     
+        ld hl, in_battle_chars                                  ; if its the second character's turn, record his target and then change the menu state to indicate to the main loop that we need to jump into ActionResolve/AnimationLoop
+        ld de, 8                                                ; NOTE: If the size of entries in the in_battle_chars data structure changes, change this number
+        add hl, de                                              ; offset the address to point to the second entry (2nd character) of in_battle_chars
+        ld de, 7                                                ; NOTE: If the distance to the "Queued Target" byte in an entry to in_battle_chars changes, change this number
+        add hl, de                                              ; offset the address to point to the "Queued Target" byte of that entry in in_battle_chars
+        ld (hl), b                                              ; store into the in_battle_chars entry the queued target specified by the cursor
+        ld hl, menu_state_char_turn                             ; change to player 2's turn
+        ld (hl), $02
+        ld hl, menu_state_var1                                  ; change the menu to the default menu on default cursor position
+        ld (hl), $08
+change_menu_on_enter_target_end:
         
+        call update_data
+
+change_menu_on_enter_end:
         ret
 
+;;; updates the screen buffer of the bottom third of the menu, according to the data
+;;; held in memory about the state of the menu and cursor
+;;; this is called after a valid input
 update_menu_buffer:
         push hl                                                 ; save registers
         push af
@@ -647,7 +792,7 @@ update_menu_buffer_item_menu:
 
         jp update_menu_buffer_text_update_end
 update_menu_buffer_target_menu:
-
+        call load_target_menu
 update_menu_buffer_text_update_end:
         ld hl, menu_state_var1                                  ; update the attributes based on the cursor position
         ld a, (hl)
@@ -749,6 +894,30 @@ update_menu_buffer_attr_end:
         pop hl
         ret
 
+;;; prints the text in the menu corresponding to all possible targets
+load_target_menu:
+        push af
+        push bc
+        push de
+        push hl
+        ld hl, $0042                                            ; print "act"
+        ld de, ally1_text
+        call print_10_to_menu_buf
+        ld hl, $0051                                            ; print "items"
+        ld de, ally2_text
+        call print_10_to_menu_buf
+        ld hl, $00A2
+        ld de, enemy1_text
+        call print_10_to_menu_buf
+        ld hl, $00B1
+        ld de, enemy2_text
+        call print_10_to_menu_buf
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ret
+
 ;;; prints the text in the menu corresponding to the current character turn
 load_act_menu:
         push af
@@ -842,7 +1011,6 @@ load_act_menu_end:
         ld l, (hl)
         ld h, 0
         call print_10_to_menu_buf
-
         pop hl
         pop de
         pop bc
@@ -914,17 +1082,221 @@ print_10_to_menu_buf_skip:
         ret
 
 update_data:
-        ld hl, $4000
+        ld de, $4000                                            ; clear the buffer to the data (top) third
+        ld hl, bordered_third_px_buf
+        ld bc, 2048
+        ldir
         ld de, $5800
-        call clear_third
-
-        ld hl, $0042
-        ld de, $3D08
+        ld hl, bordered_third_attr_buf
+        ld bc, 256
+        ldir
+        ld hl, $0042                                            ; begin printing C1's stats with "C1:"
+        ld de, $3E18
+        call print_char_to_data
+        ld hl, $0043
+        ld de, $3D88
+        call print_char_to_data
+        ld hl, $0044
+        ld de, $3DD0
+        call print_char_to_data
+        ld hl, in_battle_chars                                  ; print C1's HP
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        push de
+        ld d, h
+        ld e, l
+        ld hl, $0062
+        call print_char_to_data
+        pop de
+        ld hl, $0063
+        call print_char_to_data
+        ld hl, in_battle_chars                                  ; print C1's move choice
+        ld de, 6
+        add hl, de
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        push de
+        ld d, h
+        ld e, l
+        ld hl, $0082
+        call print_char_to_data
+        pop de
+        ld hl, $0083
+        call print_char_to_data
+        ld hl, in_battle_chars                                  ; print C1's target
+        ld de, 7
+        add hl, de
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        push de
+        ld d, h
+        ld e, l
+        ld hl, $00A2
+        call print_char_to_data
+        pop de
+        ld hl, $00A3
         call print_char_to_data
 
+        ld hl, $0047                                            ; begin printing C2's stats with "C2:"
+        ld de, $3E18
+        call print_char_to_data
+        ld hl, $0048
+        ld de, $3D90
+        call print_char_to_data
+        ld hl, $0049
+        ld de, $3DD0
+        call print_char_to_data
+        ld hl, in_battle_chars                                  ; print C2's HP
+        ld de, 8
+        add hl, de
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        push de
+        ld d, h
+        ld e, l
+        ld hl, $0067
+        call print_char_to_data
+        pop de
+        ld hl, $0068
+        call print_char_to_data
+        ld hl, in_battle_chars                                  ; print C2's move choice
+        ld de, 8
+        add hl, de
+        ld de, 6
+        add hl, de
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        push de
+        ld d, h
+        ld e, l
+        ld hl, $0087
+        call print_char_to_data
+        pop de
+        ld hl, $0088
+        call print_char_to_data
+        ld hl, in_battle_chars                                  ; print C2's target choice
+        ld de, 8
+        add hl, de
+        ld de, 7
+        add hl, de
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        push de
+        ld d, h
+        ld e, l
+        ld hl, $00A7
+        call print_char_to_data
+        pop de
+        ld hl, $00A8
+        call print_char_to_data
+        ret
 
-        ret        
-
+;;; a = byte we need to change to
+;;; output hl = the ROM address of the character described in the first 4 bits (or first hex character) of a
+;;; output de = the ROM address of the character described in the last 4 bits (or last hex character) of a
+hex_byte_to_ROM_char:
+        ld b, a
+        and $0F                                                 ; store bottom 4 bits in c
+        ld c, a
+        ld a, b                                                 ; store top 4 bits in b
+        and $F0
+        rrca
+        rrca
+        rrca
+        rrca
+        ld b, a
+        ld hl, 0
+        ld de, 0
+hex_byte_to_ROM_char_loop:
+        cp $00
+        jr z, hex_byte_to_ROM_char0
+        cp $01
+        jr z, hex_byte_to_ROM_char1
+        cp $02
+        jr z, hex_byte_to_ROM_char2
+        cp $03
+        jr z, hex_byte_to_ROM_char3
+        cp $04
+        jr z, hex_byte_to_ROM_char4
+        cp $05
+        jr z, hex_byte_to_ROM_char5
+        cp $06
+        jr z, hex_byte_to_ROM_char6
+        cp $07
+        jr z, hex_byte_to_ROM_char7
+        cp $08
+        jr z, hex_byte_to_ROM_char8
+        cp $09
+        jr z, hex_byte_to_ROM_char9
+        cp $0A
+        jr z, hex_byte_to_ROM_charA
+        cp $0B
+        jr z, hex_byte_to_ROM_charB
+        cp $0C
+        jr z, hex_byte_to_ROM_charC
+        cp $0D
+        jr z, hex_byte_to_ROM_charD
+        cp $0E
+        jr z, hex_byte_to_ROM_charE
+        cp $0F
+        jr z, hex_byte_to_ROM_charF
+hex_byte_to_ROM_char0:
+        ld de, $3D80
+        jp hex_byte_to_ROM_char_end
+hex_byte_to_ROM_char1:
+        ld de, $3D88
+        jp hex_byte_to_ROM_char_end
+hex_byte_to_ROM_char2:
+        ld de, $3D90
+        jp hex_byte_to_ROM_char_end
+hex_byte_to_ROM_char3:
+        ld de, $3D98
+        jp hex_byte_to_ROM_char_end
+hex_byte_to_ROM_char4:
+        ld de, $3DA0
+        jp hex_byte_to_ROM_char_end
+hex_byte_to_ROM_char5:
+        ld de, $3DA8
+        jp hex_byte_to_ROM_char_end
+hex_byte_to_ROM_char6:
+        ld de, $3DB0
+        jp hex_byte_to_ROM_char_end
+hex_byte_to_ROM_char7:
+        ld de, $3DB8
+        jp hex_byte_to_ROM_char_end
+hex_byte_to_ROM_char8:
+        ld de, $3DC0
+        jp hex_byte_to_ROM_char_end
+hex_byte_to_ROM_char9:
+        ld de, $3DC8
+        jp hex_byte_to_ROM_char_end
+hex_byte_to_ROM_charA:
+        ld de, $3E08
+        jp hex_byte_to_ROM_char_end
+hex_byte_to_ROM_charB:
+        ld de, $3E10
+        jp hex_byte_to_ROM_char_end
+hex_byte_to_ROM_charC:
+        ld de, $3E18
+        jp hex_byte_to_ROM_char_end
+hex_byte_to_ROM_charD:
+        ld de, $3E20
+        jp hex_byte_to_ROM_char_end
+hex_byte_to_ROM_charE:
+        ld de, $3E28
+        jp hex_byte_to_ROM_char_end
+hex_byte_to_ROM_charF:
+        ld de, $3E30
+hex_byte_to_ROM_char_end:
+        ld a, h                                                 ; if hl has already been populated by the ROM address of the pixels of the character representing the top 4 bits, then jump to end
+        or l
+        jr nz, hex_byte_to_ROM_char_end2
+        ld h, d                                                 ; if hl is 0 then save the address stored in de into hl and then do the loop over for the lower 4 bits
+        ld l, e
+        ld a, c
+        jp hex_byte_to_ROM_char_loop
+hex_byte_to_ROM_char_end2:
+        ret
 
 ; Beep duration can be increased by increasing value loaded into C
 ; Beep pitch is increased by decreasing values loaded into B and vice versa
@@ -984,17 +1356,19 @@ menu_state_var1:
 
 ;;; Char Dictionary (6 bytes x 6 characters): < HP, Armor, MR, move1 offset, move2 offset, move3 offset >
 char_data:  
-	defb $50, $00, $14, $00, $01, $02
-	defb $5A, $00, $14, $03, $04, $05
-	defb $5A, $00, $14, $06, $07, $08
-	defb $8C, $00, $00, $09, $0a, $0b
-	defb $96, $00, $00, $0c, $0d, $0e
-	defb $96, $00, $00, $0f, $10, $11
+	defb $50, $00, $14, $01, $02, $03
+	defb $5A, $00, $14, $04, $05, $06
+	defb $5A, $00, $14, $07, $08, $09
+	defb $8C, $00, $00, $0A, $0B, $0C
+	defb $96, $00, $00, $0D, $0E, $0F
+	defb $96, $00, $00, $10, $11, $12
 	
 ;;; <types: phys, magic, armor, MR, heal, dodge, MR debuff>
 ;;; < cd, type, value, 10-byte name (offset from a-8, ff = space)>
 ;;; < (13 bytes x 18 skills) In character order >	
 move_dictionary:
+    defb $00, $01, $01, $ff, $18, $20, $28, $00, $A0, $58, $98, $ff, $ff
+
 	defb $01, $07, $02 ,$ff, $60, $70, $a8, $20, $ff, $00, $ff, $ff, $ff
 	defb $01, $01, $02 ,$ff, $60, $70, $a8, $20, $ff, $08, $ff, $ff, $ff
 	defb $04, $03, $05 ,$ff, $60, $70, $a8, $20, $ff, $10, $ff, $ff, $ff
@@ -1149,6 +1523,10 @@ enemy1_text:
         defb $ff, $20, $68, $20, $60, $C0, $ff, $00, $ff, $ff
 enemy2_text:
         defb $ff, $20, $68, $20, $60, $C0, $ff, $08, $ff, $ff
+ally1_text:
+        defb $ff, $00, $58, $58, $C0, $ff, $00, $ff, $ff, $ff
+ally2_text:
+        defb $ff, $00, $58, $58, $C0, $ff, $08, $ff, $ff, $ff
 
 keymap:
         defb $fe, 's', 'Z', 'X', 'C', 'V'
