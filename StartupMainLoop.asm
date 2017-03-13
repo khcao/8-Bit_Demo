@@ -5,6 +5,8 @@ begin:
 
 startup:
         call clear_background
+        call reset_seq
+        call read_seq
         ;ld hl, char_select_p1_c1                                ; Player 1 Char A
         ;ld (hl), -1
         ;inc hl
@@ -149,6 +151,7 @@ main_loop:
         call action_resolve
 main_loop_no_action:
 
+
                                                                 ; check clock and read sprite idle data to animate visual (middle) third
 
         call handle_input                                       ; call input handler
@@ -176,6 +179,73 @@ main_loop_no_action:
 ; ########################################################################################################
 ; ############################################## FUNCTIONS ###############################################
 ; ########################################################################################################
+
+;; Read the next sequence of notes to play
+read_seq:
+        ld hl, (next_seq)
+        ld (current_seq),hl
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        xor a
+        or d
+        jr z,reset_seq
+        inc hl
+        ld (next_seq),hl
+        ret
+
+;;load the current sequence address into hl
+load_current_seq:
+        ld hl,(current_seq)
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        ret
+read_pattern:
+        ld a,(de)
+        cp $ff
+        jr z,read_s_ret
+        ld h,a
+        inc de
+        ld a,(de)
+        ld l,a
+        inc de
+        ld a,(de)
+        ld b,a
+        ld c,b
+        inc de
+        call play_sound
+        jr read_pattern
+read_s_ret:
+        call read_seq
+        ret
+
+;; Plays a single note. Duration is in hl b contains the pitch
+play_sound:
+        di
+soundLoop:
+        xor a
+        dec b
+        jr nz, skip
+        ld a,$10
+        ld b,c
+skip:
+        out ($fe),a
+        dec hl
+        ld a,h
+        or l
+        jr nz, soundLoop
+end:    
+        ei      
+        ret
+
+;; sets the value of current_seq
+reset_seq:
+        ld hl,sequence
+        ld (next_seq),hl
+        ld (current_seq),hl
+        ret
+
 
 ;;; clear pixels and default attributes on the display
 clear_background:
@@ -382,6 +452,8 @@ print_char_to_data_end:
         ret
 
 handle_input:
+        call load_current_seq
+        call read_pattern
         ld hl, keymap
         ld d, 8                                                 ; load number of rows into d
         ld c, $fe
@@ -1305,7 +1377,7 @@ short_beep:
     push bc
     push de
     push hl
-    ld c, 100
+    ld c, 70
     di
 loop:
     ld a, $10
@@ -1326,6 +1398,10 @@ delay2:
     pop bc
     pop af
     ret 
+
+
+
+
 
 ; ########################################################################################################
 ; ################################################ DATA ##################################################
@@ -1606,3 +1682,66 @@ knight:
 	defb $00, $00, $01, $06, $71, $80, $00, $00, $00, $00, $01, $82, $3f, $00, $00, $00
 	defb $00, $00, $00, $fc, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
 	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+
+sequence:
+        defw patt0
+        defw patt0
+        defw patt1
+        defw patt1
+        defw patt2
+        defw patt2
+        defw patt3
+        defw patt3
+        defw patt4
+        defw patt3
+        defw patt4
+        defw patt5
+        defw patt6
+        defw patt7
+        defw patt8
+        defw patt9
+        defw patt10
+        defw patt11
+        defw $0000
+patt0:
+defb $20,$00,$be
+defb $ff
+patt1:
+defb $20,$00,$97
+defb $ff
+patt2:
+defb $20,$00,$7f
+defb $ff
+patt3:
+defb $20,$00,$5f
+defb $ff
+patt4:
+defb $20,$00,$64
+defb $ff
+patt5:
+defb $20,$00,$5f
+defb $ff
+patt6:
+defb $20,$00,$64
+defb $ff
+patt7:
+defb $20,$00,$71
+defb $ff
+patt8:
+defb $20,$00,$7f
+defb $ff
+patt9:
+defb $20,$00,$8e
+defb $ff
+patt10:
+defb $20,$00,$97
+defb $ff
+patt11:
+defb $20,$00,$a9
+defb $ff
+
+
+next_seq:
+        defw $0000
+current_seq:
+        defw $0000
