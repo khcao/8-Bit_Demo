@@ -237,6 +237,8 @@ check_input_char_select:
 action_resolve:
 
 
+
+        ;;; Reset the menu, move choices, and target choices, update the data screen and the menu buffer
         ld hl, in_battle_chars                                  ; clear all targets and actions
         ld de, 6
         add hl, de
@@ -1090,8 +1092,8 @@ update_data:
         ld hl, bordered_third_attr_buf
         ld bc, 256
         ldir
-        ld hl, $0042                                            ; begin printing C1's stats with "C1:"
-        ld de, $3E18
+        ld hl, $0042                                            ; begin printing A1's stats with "A1:"
+        ld de, $3E08
         call print_char_to_data
         ld hl, $0043
         ld de, $3D88
@@ -1099,7 +1101,7 @@ update_data:
         ld hl, $0044
         ld de, $3DD0
         call print_char_to_data
-        ld hl, in_battle_chars                                  ; print C1's HP
+        ld hl, in_battle_chars                                  ; print A1's HP
         ld a, (hl)
         call hex_byte_to_ROM_char
         push de
@@ -1110,7 +1112,7 @@ update_data:
         pop de
         ld hl, $0063
         call print_char_to_data
-        ld hl, in_battle_chars                                  ; print C1's move choice
+        ld hl, in_battle_chars                                  ; print A1's move choice
         ld de, 6
         add hl, de
         ld a, (hl)
@@ -1123,7 +1125,7 @@ update_data:
         pop de
         ld hl, $0083
         call print_char_to_data
-        ld hl, in_battle_chars                                  ; print C1's target
+        ld hl, in_battle_chars                                  ; print A1's target
         ld de, 7
         add hl, de
         ld a, (hl)
@@ -1137,8 +1139,8 @@ update_data:
         ld hl, $00A3
         call print_char_to_data
 
-        ld hl, $0047                                            ; begin printing C2's stats with "C2:"
-        ld de, $3E18
+        ld hl, $0047                                            ; begin printing A2's stats with "A2:"
+        ld de, $3E08
         call print_char_to_data
         ld hl, $0048
         ld de, $3D90
@@ -1146,7 +1148,7 @@ update_data:
         ld hl, $0049
         ld de, $3DD0
         call print_char_to_data
-        ld hl, in_battle_chars                                  ; print C2's HP
+        ld hl, in_battle_chars                                  ; print A2's HP
         ld de, 8
         add hl, de
         ld a, (hl)
@@ -1159,7 +1161,7 @@ update_data:
         pop de
         ld hl, $0068
         call print_char_to_data
-        ld hl, in_battle_chars                                  ; print C2's move choice
+        ld hl, in_battle_chars                                  ; print A2's move choice
         ld de, 8
         add hl, de
         ld de, 6
@@ -1174,7 +1176,7 @@ update_data:
         pop de
         ld hl, $0088
         call print_char_to_data
-        ld hl, in_battle_chars                                  ; print C2's target choice
+        ld hl, in_battle_chars                                  ; print A2's target choice
         ld de, 8
         add hl, de
         ld de, 7
@@ -1188,6 +1190,112 @@ update_data:
         call print_char_to_data
         pop de
         ld hl, $00A8
+        call print_char_to_data
+
+        ld hl, $004C                                            ; begin printing E1's stats with "E1:"
+        ld de, $3E28
+        call print_char_to_data
+        ld hl, $004D
+        ld de, $3D88
+        call print_char_to_data
+        ld hl, $004E
+        ld de, $3DD0
+        call print_char_to_data
+        ld hl, in_battle_chars                                  ; print E1's HP
+        ld de, 16
+        add hl, de
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        push de
+        ld d, h
+        ld e, l
+        ld hl, $006C
+        call print_char_to_data
+        pop de
+        ld hl, $006D
+        call print_char_to_data
+        ld hl, in_battle_chars                                  ; print E1's move choice
+        ld de, 16
+        add hl, de
+        ld de, 6
+        add hl, de
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        push de
+        ld d, h
+        ld e, l
+        ld hl, $008C
+        call print_char_to_data
+        pop de
+        ld hl, $008D
+        call print_char_to_data
+        ld hl, in_battle_chars                                  ; print E1's target choice
+        ld de, 16
+        add hl, de
+        ld de, 7
+        add hl, de
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        push de
+        ld d, h
+        ld e, l
+        ld hl, $00AC
+        call print_char_to_data
+        pop de
+        ld hl, $00AD
+        call print_char_to_data
+
+        ld hl, $0053                                            ; begin printing E2's stats with "E2:"
+        ld de, $3E28
+        call print_char_to_data
+        ld hl, $0054
+        ld de, $3D90
+        call print_char_to_data
+        ld hl, $0055
+        ld de, $3DD0
+        call print_char_to_data
+        ld hl, in_battle_chars                                  ; print E2's HP
+        ld de, 24
+        add hl, de
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        push de
+        ld d, h
+        ld e, l
+        ld hl, $0073
+        call print_char_to_data
+        pop de
+        ld hl, $0074
+        call print_char_to_data
+        ld hl, in_battle_chars                                  ; print E2's move choice
+        ld de, 24
+        add hl, de
+        ld de, 6
+        add hl, de
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        push de
+        ld d, h
+        ld e, l
+        ld hl, $0093
+        call print_char_to_data
+        pop de
+        ld hl, $0094
+        call print_char_to_data
+        ld hl, in_battle_chars                                  ; print E2's target choice
+        ld de, 24
+        add hl, de
+        ld de, 7
+        add hl, de
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        push de
+        ld d, h
+        ld e, l
+        ld hl, $00B3
+        call print_char_to_data
+        pop de
+        ld hl, $00B4
         call print_char_to_data
         ret
 
@@ -1368,7 +1476,6 @@ char_data:
 ;;; < (13 bytes x 18 skills) In character order >	
 move_dictionary:
     defb $00, $01, $01, $ff, $18, $20, $28, $00, $A0, $58, $98, $ff, $ff
-
 	defb $01, $07, $02 ,$ff, $60, $70, $a8, $20, $ff, $00, $ff, $ff, $ff
 	defb $01, $01, $02 ,$ff, $60, $70, $a8, $20, $ff, $08, $ff, $ff, $ff
 	defb $04, $03, $05 ,$ff, $60, $70, $a8, $20, $ff, $10, $ff, $ff, $ff
