@@ -29,14 +29,8 @@ start_battle:
         ld bc, 256
         ldir
 
-        ld hl, visual_third_px_buf                              ; draw current (default) background for visual third of screen
-        ld de, $4800
-        ld bc, 2048
-        ldir
-        ld hl, visual_third_attr_buf
-        ld de, $5900
-        ld bc, 256
-        ldir
+                                                                ; draw current (default) background for visual third of screen
+        
 
         ld hl, bordered_third_px_buf                            ; draw current (default) background for the buffer of menu third of screen
         ld de, menu_third_px_buf
@@ -153,16 +147,8 @@ main_loop_no_action:
 
         call handle_input                                       ; call input handler
 
-        ld hl, visual_third_px_buf                              ; swap screen buffer with actual display
-        ld de, $4800
-        ld bc, 2048
-        ldir
-        ld hl, visual_third_attr_buf
-        ld de, $5900
-        ld bc, 256
-        ldir
-
-        ld hl, menu_third_px_buf
+                                  
+        ld hl, menu_third_px_buf                                ; swap screen buffermemory with the buffer
         ld de, $5000
         ld bc, 2048
         ldir
@@ -267,12 +253,31 @@ action_resolve:
         ld (hl), $00
         call update_data
         call update_menu_buffer
+        call reduce_cooldowns                                   ; reduce the active cooldowns of all moves by 1
+        ret
+
+reduce_cooldowns:
+        ld c, 19
+        ld de, 13
+        ld hl, move_dictionary
+reduce_cooldowns_loop:
+        ld a, (hl)
+        and $F0
+        jr z, reduce_cooldowns_skip
+        ld a, (hl)                                              ; else, reduce the active cooldown by 1
+        sub $10
+        ld (hl), a
+reduce_cooldowns_skip:
+        add hl, de
+        dec c
+        jr nz, reduce_cooldowns_loop
         ret
 
 ;;; copies a character sprite onto the menu third (specifically to that buffer)
 ;;; de - address of the character sprite in ROM; hl - address relative to the px buffer (0-2047) where we want to put the character
 ;;; de: [$3d00, $3fff]                           hl: [$0000, $07ff]
 print_char_to_menu:
+        push bc
         push hl
         push de
         ld a, h                                                 ; ensure hl is capped, h is the number of lines from the top of some cell
@@ -324,6 +329,7 @@ print_char_to_menu_bot_cell_loop:
 print_char_to_menu_end:
         pop de
         pop hl
+        pop bc
         ret
 
 ;;; copies a character sprite onto the data third (since no buffer, addresses to the screen) (can be used in general for display)
@@ -592,11 +598,11 @@ change_menu_on_enter:
         rrca
         rrca
         cp $01                                                 ; if on the act menu
-        jr z, change_menu_on_enter_act
+        jp z, change_menu_on_enter_act
         cp $02                                                 ; if on the items menu
-        jr z, change_menu_on_enter_item
+        jp z, change_menu_on_enter_item
         cp $03                                                 ; if on the target menu
-        jr z, change_menu_on_enter_target
+        jp z, change_menu_on_enter_target
 change_menu_on_enter_default:
         ld a, b                                                 ; where is the cursor on the default menu
         cp $00
@@ -630,12 +636,12 @@ change_menu_on_enter_act:
         ld hl, menu_state_char_turn                             ; check whose turn it is (should be 0 or 1)
         ld a, (hl)
         and $01
-        ld de, 0
+        ld de, 0                                                ; if its player 1's turn, don't add 8 to the in_battle_chars memory reference
         cp $00
         jr z, change_menu_on_enter_act0_c1
         ld de, 8                                                ; NOTE: If size of entries in in_battle_chars changes, change this
 change_menu_on_enter_act0_c1:
-        ld hl, in_battle_chars                                  ; move to either player 1 char 1 or player 1 char 2
+        ld hl, in_battle_chars                                  ; move to either player 1 char 1 or player 1 char 2 in the battle struct
         add hl, de
         push hl                                                 ; save the address of the character entry in in_battle_chars
         ld de, 3                                                ; look up the move list of the character entry by skipping 3 bytes of stats
@@ -644,6 +650,22 @@ change_menu_on_enter_act0_c1:
         ld d, 0
         add hl, de
         ld a, (hl)                                              ; grab the move index at the address
+        ;;; check the cooldown of the move in case of invalid choice
+        push bc
+        push af
+        ld h, 0                                                 ; each move in the move dictionary is described in 13 bytes; move to the exact byte of the move indexed in a
+        ld l, a
+        ld de, 13                                               ; NOTE: IF SIZE OF AN ENTRY IN THE MOVE DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
+        call simple_multiply
+        ld d, h                                                 ; keep the calculated offset in de
+        ld e, l
+        ld hl, move_dictionary                                  ; add the offset to move_dictionary
+        add hl, de                                              ; now hl points to the exact move in the move dictionary that the current character has
+        ld a, (hl)                                              ; grab the cd byte
+        and $F0                                                 ; if the active cooldown is nonzero (the first four bits of the cd byte) don't do anything with the menu
+        jp nz, change_menu_on_enter_act_invalid_cooldown
+        pop af
+        pop bc
         pop hl                                                  ; regain the address of the character entry in in_battle_chars
         ld de, 6                                                ; NOTE: If the distance to the "Queued Move" byte in the entries of in_battle_chars changes, then change this number
         add hl, de                                              ; move to the queued move byte of that character data structure
@@ -669,6 +691,11 @@ change_menu_on_enter_act_end:
 
         call update_data
 
+        jp change_menu_on_enter_end
+change_menu_on_enter_act_invalid_cooldown:
+        pop af                                                  ; reduce the stack by 3 in order to keep sanity on the stack after a premature end to the act menu case of the change_menu_on_enter function
+        pop bc
+        pop hl
         jp change_menu_on_enter_end
 change_menu_on_enter_item:
 
@@ -782,10 +809,11 @@ update_menu_buffer_clear_end:
 update_menu_buffer_default_menu:
         ld hl, $0042                                            ; print "act"
         ld de, act_text
-        call print_10_to_menu_buf
+        ld a, 10
+        call print_n_to_menu_buf
         ld hl, $0051                                            ; print "items"
         ld de, item_text
-        call print_10_to_menu_buf
+        call print_n_to_menu_buf
         jp update_menu_buffer_text_update_end
 update_menu_buffer_act_menu:
         call load_act_menu
@@ -902,18 +930,19 @@ load_target_menu:
         push bc
         push de
         push hl
-        ld hl, $0042                                            ; print "act"
+        ld hl, $0042                                            ; print "ally1"
         ld de, ally1_text
-        call print_10_to_menu_buf
-        ld hl, $0051                                            ; print "items"
+        ld a, 10
+        call print_n_to_menu_buf
+        ld hl, $0051                                            ; print "ally2"
         ld de, ally2_text
-        call print_10_to_menu_buf
-        ld hl, $00A2
+        call print_n_to_menu_buf
+        ld hl, $00A2                                            ; print "enemy1"
         ld de, enemy1_text
-        call print_10_to_menu_buf
-        ld hl, $00B1
+        call print_n_to_menu_buf
+        ld hl, $00B1                                            ; print "enemy2"
         ld de, enemy2_text
-        call print_10_to_menu_buf
+        call print_n_to_menu_buf
         pop hl
         pop de
         pop bc
@@ -949,6 +978,25 @@ load_act_menu_c2_loop:
         ld e, l
         ld hl, move_dictionary                                  ; add the offset to move_dictionary
         add hl, de                                              ; now hl points to the exact move in the move dictionary that the current character has
+        ;;; print the cd of the move
+        push hl                                                 ; save the move dictionary location for use later in printing the name of the move
+        ld a, (hl)                                              ; grab the cd byte
+        push bc
+        call hex_byte_to_ROM_char                               ; hl holds the ROM address of the character describing the first hex number of a (4 MSBs)
+        pop bc
+        ld d, h
+        ld e, l
+        push de                                                 ; de holds the ROM address of the number representing the remaining turns left before being able to use this move
+        ld hl, menu_third_px_buf_text_locations                 ; find the relative location to print onto the menu buffer
+        add hl, bc
+        ld l, (hl)
+        ld h, 0
+        ld de, 9                                                ; move 9 tiles down to leave room for the name of the move
+        add hl, de
+        pop de                                                  ; regain the ROM address
+        call print_char_to_menu
+        pop hl                                                  ; regain the move dictionary location saved from earlier
+        ;;; print the name located 3 bytes from the start of the indexed move in the move dictionary
         ld d, 0
         ld e, 3
         add hl, de                                              ; move to the "name" section of that move by skipping 3 bytes of stats
@@ -959,7 +1007,8 @@ load_act_menu_c2_loop:
         ld l, (hl)
         ld h, 0
         ;;;;;;;;;;;;;ld hl, $0042
-        call print_10_to_menu_buf
+        ld a, 8
+        call print_n_to_menu_buf
         pop hl                                                  ; regain the location of the move index of one move in the move list
         inc hl                                                  ; move to the next move index on the move list
         inc c                                                   ; check if we've done this three times
@@ -985,6 +1034,25 @@ load_act_menu_c1_loop:
         ld e, l
         ld hl, move_dictionary                                  ; add the offset to move_dictionary
         add hl, de                                              ; now hl points to the exact move in the move dictionary that the current character has
+        ;;; print the cd of the move
+        push hl                                                 ; save the move dictionary location for use later in printing the name of the move
+        ld a, (hl)                                              ; grab the cd byte
+        push bc
+        call hex_byte_to_ROM_char                               ; hl holds the ROM address of the character describing the first hex number of a (4 MSBs)
+        pop bc
+        ld d, h
+        ld e, l
+        push de                                                 ; de holds the ROM address of the number representing the remaining turns left before being able to use this move
+        ld hl, menu_third_px_buf_text_locations                 ; find the relative location to print onto the menu buffer
+        add hl, bc
+        ld l, (hl)
+        ld h, 0
+        ld de, 9                                                ; move 9 tiles down to leave room for the name of the move
+        add hl, de
+        pop de                                                  ; regain the ROM address
+        call print_char_to_menu
+        pop hl                                                  ; regain the move dictionary location saved from earlier
+        ;;; print the name located 3 bytes from the start of the indexed move in the move dictionary
         ld d, 0
         ld e, 3
         add hl, de                                              ; move to the "name" section of that move by skipping 3 bytes of stats
@@ -995,7 +1063,8 @@ load_act_menu_c1_loop:
         ld l, (hl)
         ld h, 0
         ;;;;;;;;;;;;;ld hl, $0042
-        call print_10_to_menu_buf
+        ld a, 8
+        call print_n_to_menu_buf
         pop hl                                                  ; regain the location of the move index of one move in the move list
         inc hl                                                  ; move to the next move index on the move list
         inc c                                                   ; check if we've done this three times
@@ -1012,7 +1081,8 @@ load_act_menu_end:
         add hl, bc
         ld l, (hl)
         ld h, 0
-        call print_10_to_menu_buf
+        ld a, 10
+        call print_n_to_menu_buf
         pop hl
         pop de
         pop bc
@@ -1040,17 +1110,18 @@ simple_multiply_end:
         pop af
         ret
 
-;;; prints 10 characters sequentially into the menu buffer (if they don't run off the line)
+;;; prints n number of characters sequentially into the menu buffer (if they don't run off the line)
+;;; a - the number of characters to print (n)
 ;;; hl - location of the first character byte to write to in the menu buffer
 ;;; de - location of the first "offset" byte in a sequence of 10 bytes
 ;;; "offset" - defined as byte distance from the first byte of the character 'a' or 'A' in ROM
-print_10_to_menu_buf:
+print_n_to_menu_buf:
         push af
         push bc
         push de
         push hl
-        ld c, 10                                                ; c = counter for characters printed
-print_10_to_menu_buf_loop:
+        ld c, a                                                 ; c = counter for characters printed
+print_n_to_menu_buf_loop:
         push de
         push hl
         ld h, d                                                 ; check if byte in de is $ff
@@ -1058,7 +1129,7 @@ print_10_to_menu_buf_loop:
         ld a, (hl)
         pop hl
         cp $ff
-        jr z, print_10_to_menu_buf_skip
+        jr z, print_n_to_menu_buf_skip
         push hl
         ld hl, $3E08                                            ; calculate the location in ROM for the sprite based on the offset in de
         ld a, (de)
@@ -1071,12 +1142,12 @@ print_10_to_menu_buf_loop:
         push bc
         call print_char_to_menu
         pop bc
-print_10_to_menu_buf_skip:
+print_n_to_menu_buf_skip:
         pop de
         inc hl                                                  ; move horizontally (hopefully) one character over
         inc de                                                  ; move the character sequence over one byte
         dec c                                                   ; check if we can finish
-        jr nz, print_10_to_menu_buf_loop
+        jr nz, print_n_to_menu_buf_loop
         pop hl
         pop de
         pop bc
@@ -1462,7 +1533,7 @@ menu_state_var1:
         defb $08                                                ; 4 most sig bits = which menu (by index); 2 least sig bits = cursor position; middle 2 bits = number of choices on the current menu
 
 
-;;; Char Dictionary (6 bytes x 6 characters): < HP, Armor, MR, move1 offset, move2 offset, move3 offset >
+;;; Char Dictionary (6 bytes x 6 characters): < HP, Status Bits, MR, move1 offset, move2 offset, move3 offset >
 char_data:  
 	defb $50, $00, $14, $01, $02, $03
 	defb $5A, $00, $14, $04, $05, $06
@@ -1471,31 +1542,37 @@ char_data:
 	defb $96, $00, $00, $0D, $0E, $0F
 	defb $96, $00, $00, $10, $11, $12
 	
-;;; <types: phys, magic, armor, MR, heal, dodge, MR debuff>
+;;; <types: phys(1), magic(2), armor(3), MR(4), heal(5), dodge(6), MR debuff(7)>
 ;;; < cd, type, value, 10-byte name (offset from a-8, ff = space)>
 ;;; < (13 bytes x 18 skills) In character order >	
 move_dictionary:
-    defb $00, $01, $01, $ff, $18, $20, $28, $00, $A0, $58, $98, $ff, $ff
-	defb $01, $07, $02 ,$ff, $60, $70, $a8, $20, $ff, $00, $ff, $ff, $ff
-	defb $01, $01, $02 ,$ff, $60, $70, $a8, $20, $ff, $08, $ff, $ff, $ff
-	defb $04, $03, $05 ,$ff, $60, $70, $a8, $20, $ff, $10, $ff, $ff, $ff
-	defb $01, $05, $02 ,$ff, $60, $70, $a8, $20, $ff, $18, $ff, $ff, $ff
-	defb $01, $03, $02 ,$ff, $60, $70, $a8, $20, $ff, $20, $ff, $ff, $ff
-	defb $04, $04, $05 ,$ff, $60, $70, $a8, $20, $ff, $28, $ff, $ff, $ff
-	defb $04, $05, $04 ,$ff, $60, $70, $a8, $20, $ff, $30, $ff, $ff, $ff
-	defb $01, $04, $02 ,$ff, $60, $70, $a8, $20, $ff, $38, $ff, $ff, $ff
-	defb $01, $01, $02 ,$ff, $60, $70, $a8, $20, $ff, $40, $ff, $ff, $ff
-	defb $04, $05, $05 ,$ff, $60, $70, $a8, $20, $ff, $48, $ff, $ff, $ff
-	defb $01, $01, $03 ,$ff, $60, $70, $a8, $20, $ff, $50, $ff, $ff, $ff
-	defb $01, $02, $03 ,$ff, $60, $70, $a8, $20, $ff, $58, $ff, $ff, $ff
-	defb $04, $02, $08 ,$ff, $60, $70, $a8, $20, $ff, $60, $ff, $ff, $ff
-	defb $01, $02, $04 ,$ff, $60, $70, $a8, $20, $ff, $68, $ff, $ff, $ff
-	defb $01, $04, $03 ,$ff, $60, $70, $a8, $20, $ff, $70, $ff, $ff, $ff
-	defb $02, $01, $05 ,$ff, $60, $70, $a8, $20, $ff, $78, $ff, $ff, $ff
-	defb $04, $06, $00 ,$ff, $60, $70, $a8, $20, $ff, $80, $ff, $ff, $ff
-	defb $01, $01, $03 ,$ff, $60, $70, $a8, $20, $ff, $88, $ff, $ff, $ff
+    defb $00, $01, $00, $ff, $18, $20, $28, $00, $A0, $58, $98, $ff, $ff     ; default physical attack "Struggle"
+
+	defb $21, $07, $02 ,$ff, $60, $70, $a8, $20, $ff, $00, $ff, $ff, $ff     ; sets "MR Debuff" bit in target; when target is attacked by a magic type attack, add 20 damage and reset bit
+	defb $01, $01, $02 ,$ff, $60, $70, $a8, $20, $ff, $08, $ff, $ff, $ff     ; weak physical attack (20 damage)
+	defb $04, $03, $05 ,$ff, $60, $70, $a8, $20, $ff, $10, $ff, $ff, $ff     ; strong armor buff; sets "Strong Armor Buff" bit in target; when target is attacked by a physical attack, remove 50 damage from that attack, and reset bit
+
+	defb $01, $05, $02 ,$ff, $60, $70, $a8, $20, $ff, $18, $ff, $ff, $ff     ; heals target for 20 HP
+	defb $01, $03, $02 ,$ff, $60, $70, $a8, $20, $ff, $20, $ff, $ff, $ff     ; sets the "Weak Armor Buff" bit in target; when target is attacked by physical attack, remove 20 damage from that attack, and reset the bit
+	defb $04, $04, $05 ,$ff, $60, $70, $a8, $20, $ff, $28, $ff, $ff, $ff     ; sets the "Strong MR Buff" bit; when attacked by Magic type attack, remove 50 damage and reset bit
+
+	defb $04, $05, $04 ,$ff, $60, $70, $a8, $20, $ff, $30, $ff, $ff, $ff     ; heals target for 40 HP
+	defb $01, $04, $02 ,$ff, $60, $70, $a8, $20, $ff, $38, $ff, $ff, $ff     ; sets "Weak MR Buff" bit in target; when target is next attacked by magic type attack, remove 20 damage from that attack, and reset the bit
+	defb $01, $01, $02 ,$ff, $60, $70, $a8, $20, $ff, $40, $ff, $ff, $ff     ; weak physical attack (20 damage)
+
+	defb $04, $05, $05 ,$ff, $60, $70, $a8, $20, $ff, $48, $ff, $ff, $ff     ; heals target for 50 HP
+	defb $01, $01, $03 ,$ff, $60, $70, $a8, $20, $ff, $50, $ff, $ff, $ff     ; physical attack, 30 Damage
+	defb $01, $02, $03 ,$ff, $60, $70, $a8, $20, $ff, $58, $ff, $ff, $ff     ; Magic attack, 30 Damage
+
+	defb $04, $02, $08 ,$ff, $60, $70, $a8, $20, $ff, $60, $ff, $ff, $ff     ; Magic attack, 80 Damage
+	defb $01, $02, $04 ,$ff, $60, $70, $a8, $20, $ff, $68, $ff, $ff, $ff     ; Magic attack, 40 Damage
+	defb $01, $04, $03 ,$ff, $60, $70, $a8, $20, $ff, $70, $ff, $ff, $ff     ; sets "Weak MR Buff" bit in target; when target is next attacked by magic type attack, remove 20 damage from that attack, and reset the bit
+
+	defb $02, $01, $05 ,$ff, $60, $70, $a8, $20, $ff, $78, $ff, $ff, $ff     ; Physical attack 50 damage
+	defb $04, $06, $00 ,$ff, $60, $70, $a8, $20, $ff, $80, $ff, $ff, $ff     ; sets regenerate, regardless of chosen target, this only works on self
+	defb $01, $01, $03 ,$ff, $60, $70, $a8, $20, $ff, $88, $ff, $ff, $ff     ; physical attack, 30 damage
 	
-;;; (8 bytes x 4 characters) < HP, Armor, MR, move1 offset, move2 offset, move3 offset. Queued Move, Queued Target>
+;;; (8 bytes x 4 characters) < HP, Status Bits, MR, move1 offset, move2 offset, move3 offset. Queued Move, Queued Target>
 in_battle_chars:
 	defb $00, $00, $00, $00, $00, $00, $00, $00
 	defb $00, $00, $00, $00, $00, $00, $00, $00
@@ -1605,11 +1682,6 @@ bordered_third_px_buf:
         defs 30, $00
         defs 33, $ff
 bordered_third_attr_buf:
-        defs 256, $07                                           ;    < attributes >
-
-visual_third_px_buf:
-        defs 2048, $00                                          ;      < pixels >
-visual_third_attr_buf:
         defs 256, $07                                           ;    < attributes >
 
 menu_third_px_buf:
