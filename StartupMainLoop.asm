@@ -129,7 +129,11 @@ start_battle:
         ld bc, 6                                                ; NOTE: IF SIZE OF AN ENTRY IN THE CHARACTER DICTIONARY CHANGES, CHANGE THIS NUMBER TO MATCH IT
         ldir
 
-                                                                ; initialize game states in game state buffer
+
+
+        ;;; initialize game states in game state buffer
+
+
 
         call update_data                                        ; read char stat buffers and draw into actual display in the data (top) third (note: only call this again after a call into the animation/actionResolve section)
 
@@ -224,6 +228,9 @@ action_resolve:
 
 
 
+        ;;; check if game over
+        call check_game_over
+
         ;;; Reset the menu, move choices, and target choices, update the data screen and the menu buffer
         ld hl, in_battle_chars                                  ; clear all targets and actions
         ld de, 6
@@ -254,6 +261,43 @@ action_resolve:
         call update_data
         call update_menu_buffer
         call reduce_cooldowns                                   ; reduce the active cooldowns of all moves by 1
+        ret
+
+check_game_over:
+check_game_over_check_loss:
+        ;;; check if we lose
+        ;;; if either of our characters' HPs are nonzero, move on to check if we've won (haven't lost yet)
+        ld hl, in_battle_chars
+        ld a, (hl)
+        cp 0
+        jr nz, check_game_over_check_win
+        ld de, 8
+        add hl, de
+        ld a, (hl)
+        cp 0
+        jr nz, check_game_over_check_win
+        jr check_game_over_display_loss
+check_game_over_check_win:
+        ld hl, in_battle_chars
+        ld de, 16
+        add hl, de
+        ld a, (hl)
+        cp 0
+        jr nz, check_game_over_end
+        ld de, 8
+        add hl, de
+        ld a, (hl)
+        cp 0
+        jr nz, check_game_over_end
+        ;jr check_game_over_display_win
+check_game_over_display_win:
+
+
+        jr check_game_over_end
+check_game_over_display_loss:
+
+
+check_game_over_end:
         ret
 
 reduce_cooldowns:
@@ -338,6 +382,8 @@ print_char_to_menu_end:
 print_char_to_data:
         push hl
         push de
+        push bc
+        push af
         ld a, h                                                 ; ensure hl is capped, h is the number of lines from the top of some cell
         and 7
         ld h, a
@@ -385,6 +431,8 @@ print_char_to_data_bot_cell_loop:
         dec bc
         jp print_char_to_data_bot_cell_loop
 print_char_to_data_end:
+        pop af
+        pop bc
         pop de
         pop hl
         ret
@@ -688,9 +736,6 @@ change_menu_on_enter_act3_c1:
 change_menu_on_enter_act_end:
         ld hl, menu_state_var1                                  ; change menu to the target menu
         ld (hl), $3C
-
-        call update_data
-
         jp change_menu_on_enter_end
 change_menu_on_enter_act_invalid_cooldown:
         pop af                                                  ; reduce the stack by 3 in order to keep sanity on the stack after a premature end to the act menu case of the change_menu_on_enter function
@@ -732,9 +777,6 @@ change_menu_on_enter_target_c2:
         ld hl, menu_state_var1                                  ; change the menu to the default menu on default cursor position
         ld (hl), $08
 change_menu_on_enter_target_end:
-        
-        call update_data
-
 change_menu_on_enter_end:
         ret
 
@@ -1163,211 +1205,137 @@ update_data:
         ld hl, bordered_third_attr_buf
         ld bc, 256
         ldir
+        ld b, 0
+        ld c, 0
+update_data_preloop:
+        ld a, c
+        cp 0
+        jr z, update_data_preloop_c1
+        cp 1
+        jr z, update_data_preloop_c2
+        cp 2
+        jr z, update_data_preloop_c3
+        ;cp 3
+        ;jr z, update_data_preloop_c4
+update_data_preloop_c4:
+        ld hl, $00A2                                            ; begin printing E2's stats with "E2:"
+        ld de, $3E28
+        call print_char_to_data
+        inc hl
+        ld de, $3D90
+        call print_char_to_data
+        inc hl
+        ld de, $3DD0
+        call print_char_to_data
+        jp update_data_loop
+update_data_preloop_c1:
         ld hl, $0042                                            ; begin printing A1's stats with "A1:"
         ld de, $3E08
         call print_char_to_data
-        ld hl, $0043
+        inc hl
         ld de, $3D88
         call print_char_to_data
-        ld hl, $0044
+        inc hl
         ld de, $3DD0
         call print_char_to_data
-        ld hl, in_battle_chars                                  ; print A1's HP
-        ld a, (hl)
-        call hex_byte_to_ROM_char
-        push de
-        ld d, h
-        ld e, l
-        ld hl, $0062
-        call print_char_to_data
-        pop de
-        ld hl, $0063
-        call print_char_to_data
-        ld hl, in_battle_chars                                  ; print A1's move choice
-        ld de, 6
-        add hl, de
-        ld a, (hl)
-        call hex_byte_to_ROM_char
-        push de
-        ld d, h
-        ld e, l
-        ld hl, $0082
-        call print_char_to_data
-        pop de
-        ld hl, $0083
-        call print_char_to_data
-        ld hl, in_battle_chars                                  ; print A1's target
-        ld de, 7
-        add hl, de
-        ld a, (hl)
-        call hex_byte_to_ROM_char
-        push de
-        ld d, h
-        ld e, l
-        ld hl, $00A2
-        call print_char_to_data
-        pop de
-        ld hl, $00A3
-        call print_char_to_data
-
-        ld hl, $0047                                            ; begin printing A2's stats with "A2:"
+        jp update_data_loop
+update_data_preloop_c2:
+        ld hl, $0062                                            ; begin printing A2's stats with "A2:"
         ld de, $3E08
         call print_char_to_data
-        ld hl, $0048
+        inc hl
         ld de, $3D90
         call print_char_to_data
-        ld hl, $0049
+        inc hl
         ld de, $3DD0
         call print_char_to_data
-        ld hl, in_battle_chars                                  ; print A2's HP
-        ld de, 8
-        add hl, de
-        ld a, (hl)
-        call hex_byte_to_ROM_char
-        push de
-        ld d, h
-        ld e, l
-        ld hl, $0067
-        call print_char_to_data
-        pop de
-        ld hl, $0068
-        call print_char_to_data
-        ld hl, in_battle_chars                                  ; print A2's move choice
-        ld de, 8
-        add hl, de
-        ld de, 6
-        add hl, de
-        ld a, (hl)
-        call hex_byte_to_ROM_char
-        push de
-        ld d, h
-        ld e, l
-        ld hl, $0087
-        call print_char_to_data
-        pop de
-        ld hl, $0088
-        call print_char_to_data
-        ld hl, in_battle_chars                                  ; print A2's target choice
-        ld de, 8
-        add hl, de
-        ld de, 7
-        add hl, de
-        ld a, (hl)
-        call hex_byte_to_ROM_char
-        push de
-        ld d, h
-        ld e, l
-        ld hl, $00A7
-        call print_char_to_data
-        pop de
-        ld hl, $00A8
-        call print_char_to_data
-
-        ld hl, $004C                                            ; begin printing E1's stats with "E1:"
+        jp update_data_loop
+update_data_preloop_c3:
+        ld hl, $0082                                            ; begin printing E1's stats with "E1:"
         ld de, $3E28
         call print_char_to_data
-        ld hl, $004D
+        inc hl
         ld de, $3D88
         call print_char_to_data
-        ld hl, $004E
+        inc hl
         ld de, $3DD0
         call print_char_to_data
-        ld hl, in_battle_chars                                  ; print E1's HP
-        ld de, 16
-        add hl, de
-        ld a, (hl)
-        call hex_byte_to_ROM_char
-        push de
-        ld d, h
-        ld e, l
-        ld hl, $006C
+update_data_loop:
+        push bc
+        ;;; print HP
+        inc hl
+        inc hl
+        inc hl
+        ld de, $3E40
         call print_char_to_data
-        pop de
-        ld hl, $006D
+        inc hl
+        ld de, $3E80
         call print_char_to_data
-        ld hl, in_battle_chars                                  ; print E1's move choice
-        ld de, 16
-        add hl, de
-        ld de, 6
-        add hl, de
-        ld a, (hl)
-        call hex_byte_to_ROM_char
-        push de
-        ld d, h
-        ld e, l
-        ld hl, $008C
-        call print_char_to_data
-        pop de
-        ld hl, $008D
-        call print_char_to_data
-        ld hl, in_battle_chars                                  ; print E1's target choice
-        ld de, 16
-        add hl, de
-        ld de, 7
-        add hl, de
-        ld a, (hl)
-        call hex_byte_to_ROM_char
-        push de
-        ld d, h
-        ld e, l
-        ld hl, $00AC
-        call print_char_to_data
-        pop de
-        ld hl, $00AD
-        call print_char_to_data
+        push hl
 
-        ld hl, $0053                                            ; begin printing E2's stats with "E2:"
-        ld de, $3E28
-        call print_char_to_data
-        ld hl, $0054
-        ld de, $3D90
-        call print_char_to_data
-        ld hl, $0055
-        ld de, $3DD0
-        call print_char_to_data
-        ld hl, in_battle_chars                                  ; print E2's HP
-        ld de, 24
+        ld h, 0
+        ld l, c
+        ld de, 8
+        call simple_multiply
+        ld de, in_battle_chars
         add hl, de
         ld a, (hl)
         call hex_byte_to_ROM_char
+        pop bc                                                  ; grab the relative screen location
         push de
+
         ld d, h
         ld e, l
-        ld hl, $0073
+        ld h, b
+        ld l, c
+        inc hl
+        inc hl
         call print_char_to_data
         pop de
-        ld hl, $0074
+        inc hl
         call print_char_to_data
-        ld hl, in_battle_chars                                  ; print E2's move choice
-        ld de, 24
+        pop bc
+        push bc
+
+        inc hl                                                  ; print A1's status
+        inc hl
+        inc hl
+        ld de, $3E98
+        call print_char_to_data
+        inc hl
+        ld de, $3EA0
+        call print_char_to_data
+        push hl
+
+        ld h, 0
+        ld l, c
+        ld de, 8
+        call simple_multiply
+        ld de, in_battle_chars
         add hl, de
-        ld de, 6
+        ld de, 1
         add hl, de
         ld a, (hl)
         call hex_byte_to_ROM_char
+        pop bc
         push de
         ld d, h
         ld e, l
-        ld hl, $0093
+        ld h, b
+        ld l, c
+        inc hl
+        inc hl
         call print_char_to_data
         pop de
-        ld hl, $0094
+        inc hl
         call print_char_to_data
-        ld hl, in_battle_chars                                  ; print E2's target choice
-        ld de, 24
-        add hl, de
-        ld de, 7
-        add hl, de
-        ld a, (hl)
-        call hex_byte_to_ROM_char
-        push de
-        ld d, h
-        ld e, l
-        ld hl, $00B3
-        call print_char_to_data
-        pop de
-        ld hl, $00B4
-        call print_char_to_data
+        pop bc
+
+        ;;; finish loop by incrementing counter
+        inc c
+        ld a, c
+        cp 4
+        jp nz, update_data_preloop
         ret
 
 ;;; a = byte we need to change to
@@ -1513,14 +1481,18 @@ delay2:
 
 char_select_var:
         defb $00
+
 char_select_p1_c1:
-        defb $00
-char_select_p1_c2:
         defb $01
+char_select_p1_c2:
+        defb $05
 char_select_p2_c1:
-        defb $02
+        defb $00
 char_select_p2_c2:
-        defb $03
+        defb $04
+
+move_order:
+    defb $02, $31
 
 ;;; buffer to keep track of the input (or lack thereof) of the last frame
 last_input:
@@ -1543,34 +1515,34 @@ char_data:
 	defb $96, $00, $00, $10, $11, $12
 	
 ;;; <types: phys(1), magic(2), armor(3), MR(4), heal(5), dodge(6), MR debuff(7)>
-;;; < cd, type, value, 10-byte name (offset from a-8, ff = space)>
+;;; < cd, type, value, 10-byte name (offset from a, $ff = space)>
 ;;; < (13 bytes x 18 skills) In character order >	
 move_dictionary:
-    defb $00, $01, $00, $ff, $18, $20, $28, $00, $A0, $58, $98, $ff, $ff     ; default physical attack "Struggle"
+    defb $00, $01, $00, $90, $98, $88, $A0, $30, $30, $58, $20, $ff, $ff     ; default physical attack - STRUGGLE
 
-	defb $21, $07, $02 ,$ff, $60, $70, $a8, $20, $ff, $00, $ff, $ff, $ff     ; sets "MR Debuff" bit in target; when target is attacked by a magic type attack, add 20 damage and reset bit
-	defb $01, $01, $02 ,$ff, $60, $70, $a8, $20, $ff, $08, $ff, $ff, $ff     ; weak physical attack (20 damage)
-	defb $04, $03, $05 ,$ff, $60, $70, $a8, $20, $ff, $10, $ff, $ff, $ff     ; strong armor buff; sets "Strong Armor Buff" bit in target; when target is attacked by a physical attack, remove 50 damage from that attack, and reset bit
+	defb $11, $07, $02, $10, $A0, $88, $90, $20, $ff, $ff, $ff, $ff, $ff     ; sets "MR Debuff" bit in target; when target is attacked by a magic type attack, add 20 damage and reset bit - CURSE
+	defb $01, $01, $02, $B0, $38, $00, $10, $50, $ff, $ff, $ff, $ff, $ff     ; weak physical attack (20 damage) - WHACK
+	defb $04, $03, $05, $28, $70, $88, $98, $40, $28, $C0, $ff, $ff, $ff     ; strong armor buff; sets "Strong Armor Buff" bit in target; when target is attacked by a physical attack, remove 50 damage from that attack, and reset bit - FORTIFY
 
-	defb $01, $05, $02 ,$ff, $60, $70, $a8, $20, $ff, $18, $ff, $ff, $ff     ; heals target for 20 HP
-	defb $01, $03, $02 ,$ff, $60, $70, $a8, $20, $ff, $20, $ff, $ff, $ff     ; sets the "Weak Armor Buff" bit in target; when target is attacked by physical attack, remove 20 damage from that attack, and reset the bit
-	defb $04, $04, $05 ,$ff, $60, $70, $a8, $20, $ff, $28, $ff, $ff, $ff     ; sets the "Strong MR Buff" bit; when attacked by Magic type attack, remove 50 damage and reset bit
+	defb $01, $05, $02, $38, $20, $00, $58, $ff, $ff, $ff, $ff, $ff, $ff     ; heals target for 20 HP - HEAL
+	defb $01, $03, $02, $90, $38, $40, $20, $58, $18, $ff, $ff, $ff, $ff     ; sets the "Weak Armor Buff" bit in target; when target is attacked by physical attack, remove 20 damage from that attack, and reset the bit - SHIELD
+	defb $44, $04, $05, $08, $58, $20, $90, $90, $ff, $ff, $ff, $ff, $ff     ; sets the "Strong MR Buff" bit; when attacked by Magic type attack, remove 50 damage and reset bit - BLESS
 
-	defb $04, $05, $04 ,$ff, $60, $70, $a8, $20, $ff, $30, $ff, $ff, $ff     ; heals target for 40 HP
-	defb $01, $04, $02 ,$ff, $60, $70, $a8, $20, $ff, $38, $ff, $ff, $ff     ; sets "Weak MR Buff" bit in target; when target is next attacked by magic type attack, remove 20 damage from that attack, and reset the bit
-	defb $01, $01, $02 ,$ff, $60, $70, $a8, $20, $ff, $40, $ff, $ff, $ff     ; weak physical attack (20 damage)
+	defb $44, $05, $04, $60, $20, $68, $18, $ff, $ff, $ff, $ff, $ff, $ff     ; heals target for 40 HP - MEND
+	defb $01, $04, $02, $A8, $20, $40, $58, $ff, $ff, $ff, $ff, $ff, $ff     ; sets "Weak MR Buff" bit in target; when target is next attacked by magic type attack, remove 20 damage from that attack, and reset the bit - VEIL
+	defb $01, $01, $02, $90, $60, $00, $10, $50, $ff, $ff, $ff, $ff, $ff     ; weak physical attack (20 damage)
 
-	defb $04, $05, $05 ,$ff, $60, $70, $a8, $20, $ff, $48, $ff, $ff, $ff     ; heals target for 50 HP
-	defb $01, $01, $03 ,$ff, $60, $70, $a8, $20, $ff, $50, $ff, $ff, $ff     ; physical attack, 30 Damage
-	defb $01, $02, $03 ,$ff, $60, $70, $a8, $20, $ff, $58, $ff, $ff, $ff     ; Magic attack, 30 Damage
+	defb $04, $05, $05, $88, $20, $90, $98, $70, $88, $20, $ff, $ff, $ff     ; heals target for 50 HP - RESTORE
+	defb $01, $01, $03, $90, $98, $88, $40, $50, $20, $ff, $ff, $ff, $ff     ; physical attack, 30 Damage - STRIKE
+	defb $11, $02, $03, $60, $00, $30, $40, $10, $ff, $ff, $ff, $ff, $ff     ; Magic attack, 30 Damage - MAGIC
 
-	defb $04, $02, $08 ,$ff, $60, $70, $a8, $20, $ff, $60, $ff, $ff, $ff     ; Magic attack, 80 Damage
-	defb $01, $02, $04 ,$ff, $60, $70, $a8, $20, $ff, $68, $ff, $ff, $ff     ; Magic attack, 40 Damage
-	defb $01, $04, $03 ,$ff, $60, $70, $a8, $20, $ff, $70, $ff, $ff, $ff     ; sets "Weak MR Buff" bit in target; when target is next attacked by magic type attack, remove 20 damage from that attack, and reset the bit
+	defb $04, $02, $08, $18, $20, $90, $98, $88, $70, $C0, $ff, $ff, $ff     ; Magic attack, 80 Damage - DESTROY
+	defb $11, $02, $04, $08, $58, $00, $90, $98, $ff, $ff, $ff, $ff, $ff     ; Magic attack, 40 Damage - BLAST
+	defb $01, $04, $02, $A8, $20, $40, $58, $ff, $ff, $ff, $ff, $ff, $ff     ; sets "Weak MR Buff" bit in target; when target is next attacked by magic type attack, remove 20 damage from that attack, and reset the bit - VEIL
 
-	defb $02, $01, $05 ,$ff, $60, $70, $a8, $20, $ff, $78, $ff, $ff, $ff     ; Physical attack 50 damage
-	defb $04, $06, $00 ,$ff, $60, $70, $a8, $20, $ff, $80, $ff, $ff, $ff     ; sets regenerate, regardless of chosen target, this only works on self
-	defb $01, $01, $03 ,$ff, $60, $70, $a8, $20, $ff, $88, $ff, $ff, $ff     ; physical attack, 30 damage
+	defb $02, $01, $05, $90, $60, $00, $90, $38, $ff, $ff, $ff, $ff, $ff     ; Physical attack 50 damage - SMASH
+	defb $44, $06, $00, $88, $20, $30, $20, $68, $ff, $ff, $ff, $ff, $ff     ; sets regenerate, regardless of chosen target, this only works on self - REGEN
+	defb $01, $01, $03, $90, $98, $88, $40, $50, $20, $ff, $ff, $ff, $ff     ; physical attack, 30 damage - STRIKE
 	
 ;;; (8 bytes x 4 characters) < HP, Status Bits, MR, move1 offset, move2 offset, move3 offset. Queued Move, Queued Target>
 in_battle_chars:
@@ -1578,10 +1550,6 @@ in_battle_chars:
 	defb $00, $00, $00, $00, $00, $00, $00, $00
 	defb $00, $00, $00, $00, $00, $00, $00, $00
 	defb $00, $00, $00, $00, $00, $00, $00, $00
-move_order:
-	defb $00, $00
-in_battle_moves: ; <move address (16 bit), subject, target>
-	defb $00, $00, $00, $00
 
 bordered_third_px_buf:
         defs 33, $ff
@@ -1695,17 +1663,17 @@ menu_third_px_buf_text_locations:
 
 ;;; text, as offsets to the 8byte characters in ROM (starting with A $3E08), $ff being space
 act_text:
-        defb $ff, $00, $10, $98, $ff, $ff, $ff, $ff, $ff, $ff
+        defb $00, $10, $98, $ff, $ff, $ff, $ff, $ff, $ff, $ff
 item_text:
-        defb $ff, $40, $98, $20, $60, $90, $ff, $ff, $ff, $ff
+        defb $40, $98, $20, $60, $90, $ff, $ff, $ff, $ff, $ff
 enemy1_text:
-        defb $ff, $20, $68, $20, $60, $C0, $ff, $00, $ff, $ff
+        defb $20, $68, $20, $60, $C0, $ff, $00, $ff, $ff, $ff
 enemy2_text:
-        defb $ff, $20, $68, $20, $60, $C0, $ff, $08, $ff, $ff
+        defb $20, $68, $20, $60, $C0, $ff, $08, $ff, $ff, $ff
 ally1_text:
-        defb $ff, $00, $58, $58, $C0, $ff, $00, $ff, $ff, $ff
+        defb $00, $58, $58, $C0, $ff, $00, $ff, $ff, $ff, $ff
 ally2_text:
-        defb $ff, $00, $58, $58, $C0, $ff, $08, $ff, $ff, $ff
+        defb $00, $58, $58, $C0, $ff, $08, $ff, $ff, $ff, $ff
 
 keymap:
         defb $fe, 's', 'Z', 'X', 'C', 'V'
