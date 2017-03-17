@@ -8,8 +8,8 @@ _main:
 	ld d, $38
 	call att_set
 
-	ld a, $48
-	ld (sprite_loc+1), a
+	ld hl, $47E0
+	ld (sprite_loc), hl
 knight_move:
 	ld b, 4
 knight_move_loop:
@@ -30,30 +30,53 @@ knight_move_loop:
 	inc a
 	ld (sprite_loc), a
 	
+	ld hl, (sprite_loc)
+	call y_fix_up
+	ld (sprite_loc), hl
+	
 	dec b
 	jp nz, knight_move_loop
+
 	
 knight_move2:
-	ld b, 10
+	ld b, 7
 knight_move_loop2:
-	halt
 	ld de, knight2
 	ld hl, (sprite_loc)
 	call draw_sprite
+	
+	ld hl, (sprite_loc)
+	call y_fix_up
+	ld (sprite_loc), hl
+	
 	halt	
 	ld de, knight6
 	ld hl, (sprite_loc)
 	call draw_sprite
-
+	halt
+	ld de, erase
+	ld hl, (sprite_loc)
+	call draw_sprite
+	
 	ld a, (sprite_loc)
 	inc a
 	ld (sprite_loc), a
+	
+	ld hl, (sprite_loc)
+	call y_fix_up
+	ld (sprite_loc), hl
 	
 	dec b
 	jp nz, knight_move_loop2
 
 	ld d, $00
 	call att_set
+	halt
+	halt
+	halt
+	halt
+	halt
+	halt
 	halt
 	halt
 	halt
@@ -74,11 +97,12 @@ knight_move_loop2:
 	halt
 	halt
 
-	ld a, $59
+	ld a, $58
 	ld (slash_att+1), a
 	ld a, $60
 	ld (slash_att), a
-	ld a, $4b
+	;;ld a, $4b
+	ld a, $43
 	ld (slash_pix+1), a
 	ld a, $60
 	ld (slash_pix), a
@@ -86,9 +110,87 @@ knight_move_loop2:
 	;;; TODO:: Add sprite erase code for both sprites here
 	
 	call draw_slash
+END:
+	jp END
+	;;;; IMPORTANT: increments y value of scrren location in HL and fixes it
+y_fix_up:
+	ld a, $1F
+	and l
+	ld (tmp_x), a
+	
+	ld a, h
+	and $07
+	sub 1
+	
+	jp c, next_att_up
+	nop
+	
+	dec h		;;; Next line in same attribute
+	
+	ld a, (tmp_x)
+	or l
+	ld l, a
+	ret
+next_att_up:       ;;; Fixes HL for next attribute
+	ld a, l
+	sub $20                                      
+	
+	jp c, next_third_up
+	
+	ld l, a
+	
+	ld a, $07
+	or h
+	ld h, a
+
+	ret
+next_third_up:
+
+	ld a,h 
+	sub $08
+	ld h, a
 	
 	ret
+;;;; IMPORTANT: decrements y value of scrren location in HL and fixes it
+y_fix_down:
+	ld a, $1F
+	and l
+	ld (tmp_x), a	
+
+	ld a, h
+	or $F8
+	add a, 1
 	
+	jp c, next_att_down
+	nop
+	
+	inc h		;;; Next line in same attribute
+	ret
+next_att_down:       ;;; Fixes HL for next attribute
+
+	ld a, $F8
+	and h
+	ld h, a
+	
+	ld a, $20
+	add a, l
+	
+	jp c, next_third_down
+	
+	ld l, a
+	
+	ret
+next_third_down:
+	ld a, $1F
+	and l
+	ld l, a
+	
+	ld a, 8
+	add a, h
+	ld h, a
+	ret
+tmp_x:
+	defb $00
 draw_slash:	;;; Draws slash (top or bottom)
 	halt
 	ld c, 32        
@@ -251,24 +353,7 @@ draw_sprite: ;;; Draw 64x64 sprite from location DE to HL (no OOB handle)
 	ld (x_axis), a
 	ld c, 64
 loop_line:
-	ld a, h
-	or $F8
-	add a, 1
-	
-	jp c, next_att
-	nop
-	
-	inc h		;;; Next line in same attribute
-	jp print_line
-next_att:       ;;; Fixes HL for next attribute
-	ld a, $F8
-	and h
-	ld h, a
-	
-	ld a, $20
-	add a, l
-	ld l, a
-	
+	call y_fix_down
 print_line:
 	call sprite_line
 	nop
@@ -282,7 +367,39 @@ print_line:
 spointer:
 	defb $00, $00
 	;;; 64x64 chars
-
+erase:
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
 knight2:
 	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
 	defb $00, $03, $fc, $00, $00, $00, $00, $00, $00, $0e, $04, $00, $00, $00, $00, $00
