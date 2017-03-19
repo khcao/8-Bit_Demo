@@ -225,8 +225,211 @@ check_input_char_select:
 ;;; after the animation loop returns, update the data third of the screen, then continue this loop for the next attack
 ;;; after all 4 attacks have resolved-animated-resolved-animated, we jump back into main_loop
 action_resolve:
+        ;call load_random_enemy_attacks
 
 
+        ;;; load the original HP's of all the characters at the start of this turn resolution into the temporary spaces for HP calculation
+        ;;; a = p1_c1's HP; b = p1_c2's HP; c = p2_c1's HP; d = p2_c2's HP
+        ld de, 8
+        ld hl, in_battle_chars
+        ld a, (hl)
+        add hl, de
+        ld b, (hl)
+        add hl, de
+        ld c, (hl)
+        add hl, de
+        ld d, (hl)
+        ld hl, post_battle_HP
+        ld (hl), a
+        inc hl
+        ld (hl), b
+        inc hl
+        ld (hl), c
+        inc hl
+        ld (hl), d
+
+        ;;; TODO: LOAD INTO C THE CHARACTER INDEX, TO THE ORDER OF CHARACTER SPEEDS; and change the check that ends the loop
+
+
+        ld c, 0                                                 ; counter for "whose action we are calculating"
+action_resolve_preloop:
+        ld a, c
+        cp 4
+        jp z, action_resolve_loop_exit
+        ld h, 0
+        ld l, c
+        ld de, 8
+        call simple_multiply
+        ld de, in_battle_chars
+        add hl, de                                              ; hl points to the character data in in_battle_chars
+        
+        ;;; check if we skip this person's action because he's dead
+        ld a, (hl)
+        cp 0                                                    ; if HP is nonzero, go through this iteration in the loop
+        jp nz, action_resolve_loop
+        jp action_resolve_loop_end                              ; if HP is zero, skip this character's action calculation
+action_resolve_loop:
+        ld h, 0
+        ld l, c
+        ld de, 8
+        call simple_multiply
+        ld de, in_battle_chars
+        add hl, de                                              ; hl points to the character data in in_battle_chars
+        ;;; save location of the "queued target" byte onto stack for later (might as well since we're here in memory)
+        ld de, 7                                                ; offset into the queued target byte
+        add hl, de
+        push hl                                                 ; push this location onto the stack for later retrieval
+
+        ;;; check if the target has 0 HP, if so, skip this loop iteration
+        ;ld l, (hl)                                              ; grab target byte and index into the character structures
+        ;ld h, 0
+        ;ld de, 8
+        ;call simple_multiply
+        ;ld de, in_battle_chars
+        ;add hl, de
+        ;ld a, (hl)                                              ; grab the HP of the targeted character
+        ;cp 0                                                    ; if the HP is zero, skip this turn resolve
+        ;jp z, action_resolve_case_end                           ; don't forget to pop if we skipping this iteration
+        ;pop hl
+        ;push hl
+
+        ;;; start evaluating the actual move choice
+        dec hl                                                  ; move to the location of the "queued move" byte
+        ld l, (hl)                                              ; used the move index to offset into the move dictionary
+        ld h, 0
+        ld de, 13
+        call simple_multiply
+        ld de, move_dictionary
+        add hl, de                                              ; hl points to the move structure in the move dictionary
+
+;;; <types: phys(1), magic(2), armor(3), MR(4), heal(5), dodge(6), MR debuff(7)>
+;;; < cd, type, value, 10-byte name (offset from a, $ff = space)>
+;;; <status byte: (n/a, n/a, n/a, str_mr, weak_mr, str_arm, weak_arm, mr_debuff)>
+        inc hl                                                  ; move to the types
+        ld a, (hl)
+        cp $01
+        jp z, action_resolve_case_phys
+        cp $02
+        jp z, action_resolve_case_magic
+        cp $03
+        jp z, action_resolve_case_armor
+        cp $04
+        jp z, action_resolve_case_MR
+        cp $05
+        jp z, action_resolve_case_heal
+        cp $06
+        jp z, action_resolve_case_dodge
+action_resolve_case_debuff:
+
+        jp action_resolve_case_end
+action_resolve_case_phys:
+        ;;; first grab the value byte while we are here
+        inc hl
+        ld b, (hl)                                              ; hold the damage of the attack in b
+        ;;; grab the queued target byte
+        pop hl
+        push hl
+        ld e, (hl)
+        ;;; index into the target's in_battle struct (namely the status byte)
+        ld d, 0
+        ld hl, 8
+        call simple_multiply
+        ld de, in_battle_chars
+        add hl, de
+        inc hl
+        ld d, (hl)                                              ; hold the status byte in d
+        ld a, d                                                 ; clear out the armor buff bits (no matter what, this attack nullifies all armor buffs)
+        and $F9
+        ld (hl), a
+
+        ld a, d
+        and $06                                                 ; check the 2nd and 3rd least significant bits of the target's status byte for the weak armor and strong armor buffs
+        ld d, a
+        cp $04                                                  ; if the "strong armor buff" bit is set in the target's status byte, remove 50 damage (max) from the damage kept in b
+        jr z, action_resolve_case_phys_strong_buff
+        cp 0                                                    ; if no armor buffs are indicated in the target's status byte, remove nothing from the damage
+        jr z, action_resolve_case_phys_apply_damage
+action_resolve_case_phys_weak_buff:                             ; for all other cases, move into the weak buff damage removal
+        ld a, b
+        sub 20
+        jp m, action_resolve_case_phys_no_damage                ; if the subtraction ends in a negative number, remake the damage to be 0
+        ld b, a
+        ld a, d                                                 ; check if both armor buff bits are set
+        cp $06                                                  ; if not, then skip the strong buff damage reduction calculation
+        jp nz, action_resolve_case_phys_apply_damage
+action_resolve_case_phys_strong_buff:
+        ld a, b
+        sub 50
+        jp m, action_resolve_case_phys_no_damage                ; if the subtraction ends in a negative number, remake the damage to be 0
+        ld b, a
+        jr action_resolve_case_phys_apply_damage
+action_resolve_case_phys_no_damage:
+        ld b, 0
+action_resolve_case_phys_apply_damage:
+        pop hl
+        push hl
+        ld l, (hl)                                              ; grab the target byte again
+        ld h, 0
+        ld de, post_battle_HP
+        add hl, de
+        ld a, (hl)                                              ; grab the HP of the target
+        sub b                                                   ; subtract the damage from the HP, leave it at zero if it becomes negative
+        cp $97                                                  ; since our highest HP value (150) has the most significant bit set to 1, we must check "negative numbers" to be anything >= 151; change any value >= 151 to be 0
+        jp c, action_resolve_case_phys_end
+action_resolve_case_phys_no_life:
+        ld a, 0
+action_resolve_case_phys_end:
+        ;;; replace the target's new HP with e
+        ld (hl), a
+        ld hl, post_battle_damage
+        ld (hl), b
+
+        jp action_resolve_case_end
+action_resolve_case_magic:
+
+        jp action_resolve_case_end
+action_resolve_case_armor:
+
+        jp action_resolve_case_end
+action_resolve_case_MR:
+
+        jp action_resolve_case_end
+action_resolve_case_heal:
+
+        jp action_resolve_case_end
+action_resolve_case_dodge:
+
+action_resolve_case_end:
+
+        pop hl                                                  ; grab the queued target byte
+
+        ;;; call the animation loop here
+
+
+action_resolve_loop_end:
+        inc c
+        jp action_resolve_preloop
+action_resolve_loop_exit:
+
+
+        ld hl, post_battle_HP                                   ; apply all post battle HP's to the character stats structure
+        ld a, (hl)
+        inc hl
+        ld b, (hl)
+        inc hl
+        ld c, (hl)
+        inc hl
+        ld d, (hl)
+        ld hl, in_battle_chars
+        ld (hl), a
+        ld a, d
+        ld de, 8
+        add hl, de
+        ld (hl), b
+        add hl, de
+        ld (hl), c
+        add hl, de
+        ld (hl), a
 
         ;;; check if game over
         call check_game_over
@@ -256,8 +459,18 @@ action_resolve:
         inc hl
         ld hl, menu_state_var1                                  ; return the states to the beginning of the turn
         ld (hl), $08
+        ;;; check if player 1 char 1's HP is nonzero before changing to it
+        ld hl, in_battle_chars
+        ld a, (hl)
+        cp 0
+        jr z, action_resolve_skip_p1_c1_turn
         ld hl, menu_state_char_turn
         ld (hl), $00
+        jr action_resolve_do_p1_c1_turn
+action_resolve_skip_p1_c1_turn:
+        ld hl, menu_state_char_turn                             ; since we already checked game_over, we know one of the characters is alive; if not the first character then the second one is still there
+        ld (hl), $01
+action_resolve_do_p1_c1_turn:
         call update_data
         call update_menu_buffer
         call reduce_cooldowns                                   ; reduce the active cooldowns of all moves by 1
@@ -316,6 +529,73 @@ reduce_cooldowns_skip:
         dec c
         jr nz, reduce_cooldowns_loop
         ret
+
+;;; output a - a "random" number"
+randomize:
+        push bc
+        push de
+        push hl
+        ld hl, (seed)
+        ld a, h
+        and 31
+        ld h, a
+        ld a, (hl)
+        inc hl
+        ld (seed), hl
+        pop hl
+        pop de
+        pop bc
+        ret
+seed:
+        defw 0
+
+;;; NOTE: THIS METHOD DISREGARDS ANY COOLDOWN RESTRICTIONS OF ANY SORT
+;;; TODO: create another method that handles cooldowns when assigning targets and moves
+load_random_enemy_attacks:
+        ;;; load enemy attacks
+        ;;; load targets for the enemies
+        call randomize
+        and $03
+        ld hl, in_battle_chars
+        ld de, 23                                               ; (2 chars down * 8 bytes/char) + 7 byte offset till queued target
+        add hl, de
+        ld (hl), a
+        call randomize
+        and $03
+        ld hl, in_battle_chars
+        ld de, 31                                               ; (3 chars down * 8 bytes/char) + 7 byte offset till queued target
+        add hl, de
+        ld (hl), a
+        ;;; load moves for the enemies
+        ;;; NOTE: we are able to limit the move choice from 0-4 rather than 0-3 because the 4th indexed byte from the start of the movelist is the queued move byte (which by default is $00) - this can be used to queue the default move
+        call randomize
+        and $03
+        ld hl, in_battle_chars
+        ld de, 19                                               ; (2 chars down * 8 bytes/char) + 3 byte offset till movelist
+        add hl, de
+        ld d, 0
+        ld e, a
+        add hl, de
+        ld a, (hl)
+        ld hl, in_battle_chars
+        ld de, 22                                               ; (2 chars down * 8 bytes/char) + 6 byte offset till queued move
+        add hl, de
+        ld (hl), a
+        call randomize
+        and $03
+        ld hl, in_battle_chars
+        ld de, 27                                               ; (3 chars down * 8 bytes/char) + 3 byte offset till movelist
+        add hl, de
+        ld d, 0
+        ld e, a
+        add hl, de
+        ld a, (hl)
+        ld hl, in_battle_chars
+        ld de, 30                                               ; (3 chars down * 8 bytes/char) + 6 byte offset till queued move
+        add hl, de
+        ld (hl), a
+        ret
+
 
 ;;; copies a character sprite onto the menu third (specifically to that buffer)
 ;;; de - address of the character sprite in ROM; hl - address relative to the px buffer (0-2047) where we want to put the character
@@ -760,10 +1040,21 @@ change_menu_on_enter_target_c1:
         ld de, 7                                                ; NOTE: If the distance to the "Queued Target" byte in an entry to in_battle_chars changes, change this number
         add hl, de                                              ; offset the address to point to the "Queued Target" byte of that entry in in_battle_chars
         ld (hl), b                                              ; store into the in_battle_chars entry the queued target specified by the cursor
-        ld hl, menu_state_char_turn                             ; change to player 1 char 2's turn
-        ld (hl), $01
         ld hl, menu_state_var1                                  ; change the menu to the default menu on default cursor position
         ld (hl), $08
+        ;;; check if player 1 char 2's HP is 0
+        ld hl, in_battle_chars
+        ld de, 8
+        add hl, de
+        ld a, (hl)
+        cp 0
+        jr nz, change_menu_on_enter_target_c1_change_turn
+        ld hl, menu_state_char_turn                             ; if player 1 char 2's HP is 0, skip and change to enemy's turn
+        ld (hl), $02
+        jp change_menu_on_enter_target_end
+change_menu_on_enter_target_c1_change_turn:
+        ld hl, menu_state_char_turn                             ; change to player 1 char 2's turn
+        ld (hl), $01
         jp change_menu_on_enter_target_end
 change_menu_on_enter_target_c2:                     
         ld hl, in_battle_chars                                  ; if its the second character's turn, record his target and then change the menu state to indicate to the main loop that we need to jump into ActionResolve/AnimationLoop
@@ -772,11 +1063,12 @@ change_menu_on_enter_target_c2:
         ld de, 7                                                ; NOTE: If the distance to the "Queued Target" byte in an entry to in_battle_chars changes, change this number
         add hl, de                                              ; offset the address to point to the "Queued Target" byte of that entry in in_battle_chars
         ld (hl), b                                              ; store into the in_battle_chars entry the queued target specified by the cursor
-        ld hl, menu_state_char_turn                             ; change to player 2's turn
-        ld (hl), $02
         ld hl, menu_state_var1                                  ; change the menu to the default menu on default cursor position
         ld (hl), $08
+        ld hl, menu_state_char_turn                             ; change to player 2's turn
+        ld (hl), $02
 change_menu_on_enter_target_end:
+        call update_data
 change_menu_on_enter_end:
         ret
 
@@ -1331,6 +1623,59 @@ update_data_loop:
         call print_char_to_data
         pop bc
 
+        push bc                                                 ; print the move selection NOTE: FOR DEBUGGING
+        push hl
+        ld h, 0
+        ld l, c
+        ld de, 8
+        call simple_multiply
+        ld de, in_battle_chars
+        add hl, de
+        ld de, 6
+        add hl, de
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        pop bc
+        push de
+        ld d, h
+        ld e, l
+        ld h, b
+        ld l, c
+        inc hl
+        inc hl
+        inc hl
+        call print_char_to_data
+        pop de
+        inc hl
+        call print_char_to_data
+        pop bc
+
+        push bc
+        push hl                                                 ; print the target selection NOTE: FOR DEBUGGING
+        ld h, 0
+        ld l, c
+        ld de, 8
+        call simple_multiply
+        ld de, in_battle_chars
+        add hl, de
+        ld de, 7
+        add hl, de
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        pop bc
+        push de
+        ld d, h
+        ld e, l
+        ld h, b
+        ld l, c
+        inc hl
+        inc hl
+        call print_char_to_data
+        pop de
+        inc hl
+        call print_char_to_data
+        pop bc
+
         ;;; finish loop by incrementing counter
         inc c
         ld a, c
@@ -1511,38 +1856,38 @@ char_data:
 	defb $5A, $00, $14, $04, $05, $06
 	defb $5A, $00, $14, $07, $08, $09
 	defb $8C, $00, $00, $0A, $0B, $0C
-	defb $96, $00, $00, $0D, $0E, $0F
-	defb $96, $00, $00, $10, $11, $12
+	defb $96, $02, $00, $0D, $0E, $0F
+	defb $96, $04, $00, $10, $11, $12
 	
 ;;; <types: phys(1), magic(2), armor(3), MR(4), heal(5), dodge(6), MR debuff(7)>
 ;;; < cd, type, value, 10-byte name (offset from a, $ff = space)>
 ;;; < (13 bytes x 18 skills) In character order >	
 move_dictionary:
-    defb $00, $01, $00, $90, $98, $88, $A0, $30, $30, $58, $20, $ff, $ff     ; default physical attack - STRUGGLE
+    defb $00, $01, $0A, $90, $98, $88, $A0, $30, $30, $58, $20, $ff, $ff     ; default physical attack - STRUGGLE
 
-	defb $11, $07, $02, $10, $A0, $88, $90, $20, $ff, $ff, $ff, $ff, $ff     ; sets "MR Debuff" bit in target; when target is attacked by a magic type attack, add 20 damage and reset bit - CURSE
-	defb $01, $01, $02, $B0, $38, $00, $10, $50, $ff, $ff, $ff, $ff, $ff     ; weak physical attack (20 damage) - WHACK
-	defb $04, $03, $05, $28, $70, $88, $98, $40, $28, $C0, $ff, $ff, $ff     ; strong armor buff; sets "Strong Armor Buff" bit in target; when target is attacked by a physical attack, remove 50 damage from that attack, and reset bit - FORTIFY
+	defb $11, $07, $14, $10, $A0, $88, $90, $20, $ff, $ff, $ff, $ff, $ff     ; sets "MR Debuff" bit in target; when target is attacked by a magic type attack, add 20 damage and reset bit - CURSE
+	defb $01, $01, $14, $B0, $38, $00, $10, $50, $ff, $ff, $ff, $ff, $ff     ; weak physical attack (20 damage) - WHACK
+	defb $04, $03, $32, $28, $70, $88, $98, $40, $28, $C0, $ff, $ff, $ff     ; strong armor buff; sets "Strong Armor Buff" bit in target; when target is attacked by a physical attack, remove 50 damage from that attack, and reset bit - FORTIFY
 
-	defb $01, $05, $02, $38, $20, $00, $58, $ff, $ff, $ff, $ff, $ff, $ff     ; heals target for 20 HP - HEAL
-	defb $01, $03, $02, $90, $38, $40, $20, $58, $18, $ff, $ff, $ff, $ff     ; sets the "Weak Armor Buff" bit in target; when target is attacked by physical attack, remove 20 damage from that attack, and reset the bit - SHIELD
-	defb $44, $04, $05, $08, $58, $20, $90, $90, $ff, $ff, $ff, $ff, $ff     ; sets the "Strong MR Buff" bit; when attacked by Magic type attack, remove 50 damage and reset bit - BLESS
+	defb $01, $05, $14, $38, $20, $00, $58, $ff, $ff, $ff, $ff, $ff, $ff     ; heals target for 20 HP - HEAL
+	defb $01, $03, $14, $90, $38, $40, $20, $58, $18, $ff, $ff, $ff, $ff     ; sets the "Weak Armor Buff" bit in target; when target is attacked by physical attack, remove 20 damage from that attack, and reset the bit - SHIELD
+	defb $44, $04, $32, $08, $58, $20, $90, $90, $ff, $ff, $ff, $ff, $ff     ; sets the "Strong MR Buff" bit; when attacked by Magic type attack, remove 50 damage and reset bit - BLESS
 
-	defb $44, $05, $04, $60, $20, $68, $18, $ff, $ff, $ff, $ff, $ff, $ff     ; heals target for 40 HP - MEND
-	defb $01, $04, $02, $A8, $20, $40, $58, $ff, $ff, $ff, $ff, $ff, $ff     ; sets "Weak MR Buff" bit in target; when target is next attacked by magic type attack, remove 20 damage from that attack, and reset the bit - VEIL
-	defb $01, $01, $02, $90, $60, $00, $10, $50, $ff, $ff, $ff, $ff, $ff     ; weak physical attack (20 damage)
+	defb $44, $05, $28, $60, $20, $68, $18, $ff, $ff, $ff, $ff, $ff, $ff     ; heals target for 40 HP - MEND
+	defb $01, $04, $14, $A8, $20, $40, $58, $ff, $ff, $ff, $ff, $ff, $ff     ; sets "Weak MR Buff" bit in target; when target is next attacked by magic type attack, remove 20 damage from that attack, and reset the bit - VEIL
+	defb $01, $01, $14, $90, $60, $00, $10, $50, $ff, $ff, $ff, $ff, $ff     ; weak physical attack (20 damage)
 
-	defb $04, $05, $05, $88, $20, $90, $98, $70, $88, $20, $ff, $ff, $ff     ; heals target for 50 HP - RESTORE
-	defb $01, $01, $03, $90, $98, $88, $40, $50, $20, $ff, $ff, $ff, $ff     ; physical attack, 30 Damage - STRIKE
-	defb $11, $02, $03, $60, $00, $30, $40, $10, $ff, $ff, $ff, $ff, $ff     ; Magic attack, 30 Damage - MAGIC
+	defb $04, $05, $32, $88, $20, $90, $98, $70, $88, $20, $ff, $ff, $ff     ; heals target for 50 HP - RESTORE
+	defb $01, $01, $1E, $90, $98, $88, $40, $50, $20, $ff, $ff, $ff, $ff     ; physical attack, 30 Damage - STRIKE
+	defb $11, $02, $1E, $60, $00, $30, $40, $10, $ff, $ff, $ff, $ff, $ff     ; Magic attack, 30 Damage - MAGIC
 
-	defb $04, $02, $08, $18, $20, $90, $98, $88, $70, $C0, $ff, $ff, $ff     ; Magic attack, 80 Damage - DESTROY
-	defb $11, $02, $04, $08, $58, $00, $90, $98, $ff, $ff, $ff, $ff, $ff     ; Magic attack, 40 Damage - BLAST
-	defb $01, $04, $02, $A8, $20, $40, $58, $ff, $ff, $ff, $ff, $ff, $ff     ; sets "Weak MR Buff" bit in target; when target is next attacked by magic type attack, remove 20 damage from that attack, and reset the bit - VEIL
+	defb $04, $02, $50, $18, $20, $90, $98, $88, $70, $C0, $ff, $ff, $ff     ; Magic attack, 80 Damage - DESTROY
+	defb $11, $02, $28, $08, $58, $00, $90, $98, $ff, $ff, $ff, $ff, $ff     ; Magic attack, 40 Damage - BLAST
+	defb $01, $04, $14, $A8, $20, $40, $58, $ff, $ff, $ff, $ff, $ff, $ff     ; sets "Weak MR Buff" bit in target; when target is next attacked by magic type attack, remove 20 damage from that attack, and reset the bit - VEIL
 
-	defb $02, $01, $05, $90, $60, $00, $90, $38, $ff, $ff, $ff, $ff, $ff     ; Physical attack 50 damage - SMASH
-	defb $44, $06, $00, $88, $20, $30, $20, $68, $ff, $ff, $ff, $ff, $ff     ; sets regenerate, regardless of chosen target, this only works on self - REGEN
-	defb $01, $01, $03, $90, $98, $88, $40, $50, $20, $ff, $ff, $ff, $ff     ; physical attack, 30 damage - STRIKE
+	defb $22, $01, $32, $90, $60, $00, $90, $38, $ff, $ff, $ff, $ff, $ff     ; Physical attack 50 damage - SMASH
+	defb $04, $06, $00, $88, $20, $30, $20, $68, $ff, $ff, $ff, $ff, $ff     ; sets regenerate, regardless of chosen target, this only works on self - REGEN
+	defb $01, $01, $1E, $90, $98, $88, $40, $50, $20, $ff, $ff, $ff, $ff     ; physical attack, 30 damage - STRIKE
 	
 ;;; (8 bytes x 4 characters) < HP, Status Bits, MR, move1 offset, move2 offset, move3 offset. Queued Move, Queued Target>
 in_battle_chars:
@@ -1550,6 +1895,10 @@ in_battle_chars:
 	defb $00, $00, $00, $00, $00, $00, $00, $00
 	defb $00, $00, $00, $00, $00, $00, $00, $00
 	defb $00, $00, $00, $00, $00, $00, $00, $00
+post_battle_HP:
+    defb $00, $00, $00, $00
+post_battle_damage:
+    defb $00
 
 bordered_third_px_buf:
         defs 33, $ff
