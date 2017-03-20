@@ -11,6 +11,8 @@ _main:
 	ld hl, $47E0
 	ld (sprite_loc), hl
 	ld (sprite_orig), hl
+	ld a, $38
+	ld (att), a
 knight_move:
 	ld b, 4
 knight_move_loop:
@@ -125,6 +127,9 @@ fireball:
 	ld hl, (enemy_loc)
 	ld de, knight2
 	call draw_sprite
+	
+	ld a, $3a
+	ld (att), a
 	
 	ld hl, (sprite_orig)
 	ld e, $08
@@ -241,6 +246,8 @@ fireball_part:
 	ld hl, (sprite_loc)
 	call draw_sprite
 	
+	ld a, $38
+	ld (att), a
     ld a, $04
     ld (sprite_half_w), a
     ld a, $40
@@ -476,6 +483,7 @@ sprite_line_or: ;;; OR 8 pixel horizontal from DE to HL
 	ld c, a
 	exx
 line_inner_or:
+	
 	pop de
 	ld a, (hl)
 	or e
@@ -509,18 +517,22 @@ line_inner_or:
 	ret   ;;; sprite_line ret
 
 draw_sprite_or: ;;; OR wxh sprite from location DE to HL (no OOB handle)
+	push bc
+	call draw_att
+	
 	ld a, $1F
 	and l
 	ld (x_axis), a
 	ld a, (sprite_h)
 	ld c, a
 loop_line_or:
+
 	call sprite_line_or
 	call y_fix_down
 
 	dec c
 	jp nz, loop_line_or
-	
+	pop bc
 	ret ;;; Draw sprite ret
 
 sprite_line: ;;; Draw 8 pixel horizontal from DE to HL
@@ -529,11 +541,15 @@ sprite_line: ;;; Draw 8 pixel horizontal from DE to HL
 	ld ixl, e
 	ld ixh, d
 	ld sp, ix	;;;Load DE into S
+	ld a, h
 	exx
+	
 	ld a, (sprite_half_w)
 	ld c, a
+	
 	exx
 line_inner:
+	
 	pop de
 	ld (hl), e
 	inc l
@@ -559,29 +575,87 @@ line_inner:
 	
 	ld sp,(spointer)  ;;; Restore SP
 	ret   ;;; sprite_line ret
-
+	
 x_axis:
 	defb $00
 draw_sprite: ;;; Draw wxh sprite from location DE to HL (no OOB handle)
+	push bc
+	call draw_att
 	ld a, $1F
 	and l
 	ld (x_axis), a
 	ld a, (sprite_h)
 	ld c, a
 loop_line:
+	
 	call sprite_line
 	call y_fix_down
 
 	dec c
 	jp nz, loop_line
 	
+	pop bc
 	ret ;;; Draw sprite ret
+draw_att:
+	push bc
+	push hl
+	push de
+	;;; Calculate attribute
+	ld a, $18
+	and h
+	srl a
+	srl a
+	srl a
+	ld b, a
+	ld a, $58
+	or b
+	ld h, a
+	
+	ld a, (sprite_h)
+	srl a
+	srl a
+	srl a
+	inc a
+	ld b, a		;;; b has sprite height
+	
+	ld a, (sprite_half_w)
+	rlca
+	ld c, a   ;;; c has sprite width
+
+att_line_loop:
+	ld a, (att)
+	ld (hl), a
+	inc hl
+	
+	dec c
+	jp nz, att_line_loop
+	
+	ld a, (sprite_half_w)
+	rlca
+	ld c, a
+	ld a, $20
+	sub c
+	ld d, $00
+	ld e, a
+	add hl, de
+	
+	dec b
+	jp nz, att_line_loop
+	
+	pop de
+	pop hl
+	pop bc
+	ret
 sprite_half_w:
     defb $04
 sprite_h:
     defb $40
 spointer:
 	defb $00, $00
+att:
+	defb $00
+att_loc:
+	defb $00
 	;;; 64x64 chars
 erase:
 	defb $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
