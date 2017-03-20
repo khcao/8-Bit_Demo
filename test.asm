@@ -34,7 +34,6 @@ knight_move_loop:
 	ld hl, (sprite_loc)
 	call y_fix_up
 	ld (sprite_loc), hl
-	
 	dec b
 	jp nz, knight_move_loop
 
@@ -121,11 +120,11 @@ knight_move_loop2:
 	ld hl, (sprite_orig)
 	ld (sprite_loc), hl
 
-	
-	
 fireball:
 	;;; START MAGE ANIMATION
-	
+	ld hl, (enemy_loc)
+	ld de, knight2
+	call draw_sprite
 	
 	ld hl, (sprite_orig)
 	ld e, $08
@@ -144,20 +143,136 @@ fireball:
 	ld (sprite_half_w), a
 	ld a, $18
 	ld (sprite_h), a
+	
+	exx
+	ld b, 3
+	exx
 fireball_charge:
-	ld b, 9
+	ld b, 8
 	ld de, ball11
 fireball_loop:
     halt
     halt
     halt
+    halt
 	ld hl, (sprite_loc)
 	call draw_sprite
-	halt
+	
 	dec b
 	jp nz, fireball_loop
 	
-	jp fireball_charge
+	halt
+	ld de, ball17
+	ld hl, (sprite_loc)
+	call draw_sprite
+	halt
+	ld de, ball16
+	ld hl, (sprite_loc)
+	call draw_sprite
+	halt
+	ld de, ball15
+	ld hl, (sprite_loc)
+	call draw_sprite
+	halt
+	ld de, ball14
+	ld hl, (sprite_loc)
+	call draw_sprite
+	halt
+	ld de, ball13
+	ld hl, (sprite_loc)
+	call draw_sprite
+	halt
+	ld de, ball12
+	ld hl, (sprite_loc)
+	call draw_sprite
+	exx
+	dec b
+	exx
+	jp nz, fireball_charge
+	
+	halt
+
+	ld hl, ball11
+	ld (fireball_base), hl
+	exx
+	ld b, 7
+	exx
+fireball_go:
+	ld b, 3
+	ld hl, (fireball_base)
+	ld d, h
+	ld e, l
+fireball_part:
+	ld hl, (sprite_loc)
+	
+	call draw_sprite
+	halt
+	ld hl, (sprite_loc)
+	call y_fix_up
+	ld (sprite_loc), hl
+	
+	dec b
+	jp nz, fireball_part
+	
+	
+	ld hl, $0060 ;;; Offset to next fireball part animation
+	ld d, h
+	ld e, l
+	ld hl, (fireball_base)
+	add hl, de
+	ld (fireball_base), hl
+	halt
+	ld hl, (sprite_loc)
+	ld de, erase
+	call draw_sprite
+	
+	ld hl, (sprite_loc)
+	inc l
+	ld (sprite_loc), hl
+	
+	
+	exx
+	dec b
+	exx
+	jp nz, fireball_go
+	
+	halt
+	ld de, ball19
+	ld hl, (sprite_loc)
+	call draw_sprite
+	
+    ld a, $04
+    ld (sprite_half_w), a
+    ld a, $40
+    ld (sprite_h), a
+	ld hl, (enemy_loc)
+	ld de, knight2
+	call draw_sprite_or
+	ld a, $02
+	ld (sprite_half_w), a
+	ld a, $18
+	ld (sprite_h), a
+	
+	halt
+	ld de, erase
+	ld hl, (sprite_loc)
+	call draw_sprite
+	ld a, $04
+    ld (sprite_half_w), a
+    ld a, $40
+    ld (sprite_h), a
+    
+	ld hl, (enemy_loc)
+	ld de, knight2
+	call draw_sprite
+
+endloop:
+	jp endloop
+	
+fireball_base:
+	defb $00, $00
+enemy_loc:
+	defb $17, $40
 	;;;; IMPORTANT: increments y value of scrren location in HL and fixes it
 sprite_orig:
 	defb $00, $00
@@ -350,7 +465,64 @@ INIT:
 	; <types: phys, magic, armor, MR, heal, dodge, MR debuff>
 	; < cd, type, value, 10-byte name>
 	; < In character order >
+sprite_line_or: ;;; OR 8 pixel horizontal from DE to HL
+	ld (spointer), sp   ;;; store SP
 	
+	ld ixl, e
+	ld ixh, d
+	ld sp, ix	;;;Load DE into S
+	exx
+	ld a, (sprite_half_w)
+	ld c, a
+	exx
+line_inner_or:
+	pop de
+	ld a, (hl)
+	or e
+	ld e, a
+	ld (hl), e
+	inc l
+	ld a, (hl)
+	or d
+	ld d, a
+	ld (hl), d
+	inc l
+
+	exx
+	dec c
+	exx
+	jp nz, line_inner_or
+
+	ld a, $e0	
+	and l
+	ld iy, x_axis
+	ld l, (iy+0)
+	or l
+	ld l, a	;;; Restore x-axis
+	
+	ld ix, $0000
+	add ix, sp
+	ld d, ixh
+	ld e, ixl ;;; Restore DE
+	
+	ld sp,(spointer)  ;;; Restore SP
+	ret   ;;; sprite_line ret
+
+draw_sprite_or: ;;; OR wxh sprite from location DE to HL (no OOB handle)
+	ld a, $1F
+	and l
+	ld (x_axis), a
+	ld a, (sprite_h)
+	ld c, a
+loop_line_or:
+	call sprite_line_or
+	call y_fix_down
+
+	dec c
+	jp nz, loop_line_or
+	
+	ret ;;; Draw sprite ret
+
 sprite_line: ;;; Draw 8 pixel horizontal from DE to HL
 	ld (spointer), sp   ;;; store SP
 	
@@ -359,7 +531,7 @@ sprite_line: ;;; Draw 8 pixel horizontal from DE to HL
 	ld sp, ix	;;;Load DE into S
 	exx
 	ld a, (sprite_half_w)
-	ld b, a
+	ld c, a
 	exx
 line_inner:
 	pop de
@@ -369,7 +541,7 @@ line_inner:
 	inc l
 
 	exx
-	dec b
+	dec c
 	exx
 	jp nz, line_inner
 
@@ -390,7 +562,7 @@ line_inner:
 
 x_axis:
 	defb $00
-draw_sprite: ;;; Draw 64x64 sprite from location DE to HL (no OOB handle)
+draw_sprite: ;;; Draw wxh sprite from location DE to HL (no OOB handle)
 	ld a, $1F
 	and l
 	ld (x_axis), a
