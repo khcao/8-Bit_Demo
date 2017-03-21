@@ -304,6 +304,18 @@ action_resolve_loop:
         ld de, move_dictionary
         add hl, de                                              ; hl points to the move structure in the move dictionary
 
+        ;;; set the cooldown
+        ld a, (hl)
+        and $0F
+        ld d, a
+        inc a
+        sla a
+        sla a
+        sla a
+        sla a
+        add d
+        ld (hl), a
+
 ;;; <types: phys(1), magic(2), armor(3), MR(4), heal(5), dodge(6), MR debuff(7)>
 ;;; < cd, type, value, 10-byte name (offset from a, $ff = space)>
 ;;; <status byte: (n/a, n/a, dodge, str_mr, weak_mr, str_arm, weak_arm, mr_debuff)>
@@ -711,20 +723,20 @@ check_game_over_check_loss:
         add hl, de
         ld a, (hl)
         cp 0
-        jr nz, check_game_over_check_win
-        jr check_game_over_display_loss
+        jp nz, check_game_over_check_win
+        jp check_game_over_display_loss
 check_game_over_check_win:
         ld hl, in_battle_chars
         ld de, 16
         add hl, de
         ld a, (hl)
         cp 0
-        jr nz, check_game_over_end
+        jp nz, check_game_over_end
         ld de, 8
         add hl, de
         ld a, (hl)
         cp 0
-        jr nz, check_game_over_end
+        jp nz, check_game_over_end
         ;jr check_game_over_display_win
 check_game_over_display_win:
         call clear_background
@@ -2175,27 +2187,27 @@ char_data:
 move_dictionary:
         defb $00, $01, $0A, $90, $98, $88, $A0, $30, $30, $58, $20, $ff, $ff     ; default physical attack - STRUGGLE
 
-	defb $11, $07, $14, $10, $A0, $88, $90, $20, $ff, $ff, $ff, $ff, $ff     ; sets "MR Debuff" bit in target; when target is attacked by a magic type attack, add 20 damage and reset bit - CURSE
+	defb $01, $07, $14, $10, $A0, $88, $90, $20, $ff, $ff, $ff, $ff, $ff     ; sets "MR Debuff" bit in target; when target is attacked by a magic type attack, add 20 damage and reset bit - CURSE
 	defb $01, $01, $14, $B0, $38, $00, $10, $50, $ff, $ff, $ff, $ff, $ff     ; weak physical attack (20 damage) - WHACK
 	defb $04, $03, $32, $28, $70, $88, $98, $40, $28, $C0, $ff, $ff, $ff     ; strong armor buff; sets "Strong Armor Buff" bit in target; when target is attacked by a physical attack, remove 50 damage from that attack, and reset bit - FORTIFY
 
 	defb $01, $05, $14, $38, $20, $00, $58, $ff, $ff, $ff, $ff, $ff, $ff     ; heals target for 20 HP - HEAL
 	defb $01, $03, $14, $90, $38, $40, $20, $58, $18, $ff, $ff, $ff, $ff     ; sets the "Weak Armor Buff" bit in target; when target is attacked by physical attack, remove 20 damage from that attack, and reset the bit - SHIELD
-	defb $44, $04, $32, $08, $58, $20, $90, $90, $ff, $ff, $ff, $ff, $ff     ; sets the "Strong MR Buff" bit; when attacked by Magic type attack, remove 50 damage and reset bit - BLESS
+	defb $04, $04, $32, $08, $58, $20, $90, $90, $ff, $ff, $ff, $ff, $ff     ; sets the "Strong MR Buff" bit; when attacked by Magic type attack, remove 50 damage and reset bit - BLESS
 
-	defb $44, $05, $28, $60, $20, $68, $18, $ff, $ff, $ff, $ff, $ff, $ff     ; heals target for 40 HP - MEND
+	defb $04, $05, $28, $60, $20, $68, $18, $ff, $ff, $ff, $ff, $ff, $ff     ; heals target for 40 HP - MEND
 	defb $01, $04, $14, $A8, $20, $40, $58, $ff, $ff, $ff, $ff, $ff, $ff     ; sets "Weak MR Buff" bit in target; when target is next attacked by magic type attack, remove 20 damage from that attack, and reset the bit - VEIL
 	defb $01, $01, $14, $90, $60, $00, $10, $50, $ff, $ff, $ff, $ff, $ff     ; weak physical attack (20 damage)
 
 	defb $04, $05, $32, $88, $20, $90, $98, $70, $88, $20, $ff, $ff, $ff     ; heals target for 50 HP - RESTORE
 	defb $01, $01, $1E, $90, $98, $88, $40, $50, $20, $ff, $ff, $ff, $ff     ; physical attack, 30 Damage - STRIKE
-	defb $11, $02, $1E, $60, $00, $30, $40, $10, $ff, $ff, $ff, $ff, $ff     ; Magic attack, 30 Damage - MAGIC
+	defb $01, $02, $1E, $60, $00, $30, $40, $10, $ff, $ff, $ff, $ff, $ff     ; Magic attack, 30 Damage - MAGIC
 
 	defb $04, $02, $50, $18, $20, $90, $98, $88, $70, $C0, $ff, $ff, $ff     ; Magic attack, 80 Damage - DESTROY
-	defb $11, $02, $28, $08, $58, $00, $90, $98, $ff, $ff, $ff, $ff, $ff     ; Magic attack, 40 Damage - BLAST
+	defb $01, $02, $28, $08, $58, $00, $90, $98, $ff, $ff, $ff, $ff, $ff     ; Magic attack, 40 Damage - BLAST
 	defb $01, $04, $14, $A8, $20, $40, $58, $ff, $ff, $ff, $ff, $ff, $ff     ; sets "Weak MR Buff" bit in target; when target is next attacked by magic type attack, remove 20 damage from that attack, and reset the bit - VEIL
 
-	defb $22, $01, $32, $90, $60, $00, $90, $38, $ff, $ff, $ff, $ff, $ff     ; Physical attack 50 damage - SMASH
+	defb $02, $01, $32, $90, $60, $00, $90, $38, $ff, $ff, $ff, $ff, $ff     ; Physical attack 50 damage - SMASH
 	defb $04, $06, $00, $88, $20, $30, $20, $68, $ff, $ff, $ff, $ff, $ff     ; sets regenerate, regardless of chosen target, this only works on self - REGEN
 	defb $01, $01, $1E, $90, $98, $88, $40, $50, $20, $ff, $ff, $ff, $ff     ; physical attack, 30 damage - STRIKE
 	
