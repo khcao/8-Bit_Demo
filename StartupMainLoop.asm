@@ -2156,7 +2156,7 @@ pixel_clear_third:
         						;;;;;; Friendly Prep
         
         
-        ;;;; print enemy sprites
+        ;;;; print enemy sprites TODOOOO
         ld hl, $1740
         
         ld hl, $1748
@@ -2230,8 +2230,7 @@ pixel_clear_third:
         jp z, heal
         cp 18
         jp z, tackle
-        jp enemy_logic
-        
+        jp anim_loop_end
 armor:
     ld hl, $47F0
 	ld b, 63
@@ -2564,7 +2563,6 @@ knight_move_loop2:
 	jp anim_loop_end
 	
 heal:			;;;; heal branch;;;;
-	
      call heal_animation
      jp anim_loop_end
 
@@ -2580,14 +2578,17 @@ tackle:						;;;; Tackle Branch::::
 	exx
 tackle_move_loop:			
 	halt
+	halt
 	ld de, knight2
 	ld hl, (sprite_loc)
 	call draw_sprite
-	halt	
+	halt
+	halt
 	ld de, knight6
 	ld hl, (sprite_loc)
 	call draw_sprite
-	halt	
+	halt
+	halt
 	ld de, knight8
 	ld hl, (sprite_loc)
 	call draw_sprite
@@ -2658,7 +2659,505 @@ tackle_move_loop2:
     jp anim_loop_end
 
 enemy_logic:
+		ld hl, $400F
+        ld a, c
+        sub 2
+        rlca
+        rlca
+        rlca
+        add a, l
+        ld l, a
+        
+        ld (sprite_loc), hl
+        ld (sprite_orig), hl
+        
+        ld hl, char_colors
+        ld d, $00
+        ld e, c
+        add hl, de
+        ld  a ,(hl)
+        ld (att), a
+        ;;;;;;;;;;;; Branch to animations;;;;;;;;;
+        ld a, c			;;; Get offset by rotate
+        rlca
+        rlca
+        rlca
+        ld hl, $0000
+        ld l, a
+        ld de, in_battle_chars       
+        add hl, de      ;;;; Offset into in_battle_char
+        ld d, $00
+        ld e, 6
+        add hl, de   ;;; Index into move queued
+        ld a, (hl)
+        ;;;;;;;;;;TEST AREA::::::::
+        jp slash_e
+       ;;;;;;;;;;;;;;;
+        
+        
+        cp 0
+        jp z, anim_loop_end
+        cp 1
+        jp z, heal_e   ;;;; TENTATIVE
+        cp 2
+        jp z, tackle2_e
+        cp 3
+        jp z, armor_e
+        cp 4
+        jp z, heal_e
+        cp 5
+        jp z, armor_e
+        cp 6
+        jp z, mresist_e
+        cp 7
+        jp z, heal_e
+        cp 8
+        jp z, mresist_e
+        cp 9
+        jp z, tackle2_e
+        cp 10
+        jp z, heal_e
+        cp 11
+        jp z, tackle_e
+        cp 12
+        jp z, fireball_e
+        cp 13
+        jp z, fireball_e
+        cp 14
+        jp z, fireball_e
+        cp 15
+        jp z, armor_e
+        cp 16
+        jp z, slash_e
+        cp 17
+        jp z, heal_e
+        cp 18
+        jp z, tackle_e
+        jp anim_loop_end
 
+armor_e:
+    ld hl, $4012
+	ld b, 63
+	call y_down_loop
+	
+	ld a, 1
+	ld (sprite_half_w), a
+	ld (sprite_h), a
+	ld (sprite_loc), hl
+	exx
+	ld b, 62
+	exx
+wall_loop_e:
+	halt
+	ld de, wall
+	ld hl, (sprite_loc)
+	call draw_sprite
+	ld a, (sprite_h)
+	inc a
+	ld (sprite_h), a
+	ld hl, (sprite_loc)
+	call y_fix_up
+	ld (sprite_loc), hl
+	exx
+	dec b
+	exx
+	jp nz, wall_loop_e
+	
+	ld hl, (sprite_loc)
+	call y_fix_down
+	ld a, (sprite_h)
+	dec a
+	ld (sprite_h), a
+	ld de, erase
+	call draw_sprite
+	halt
+	ld a, $04
+    ld (sprite_half_w), a
+    ld a, $40
+    ld (sprite_h), a
+	jp anim_loop_end
+mresist_e:
+    ld hl, $4012
+	ld b, 63
+	call y_down_loop
+	
+	ld a, 1
+	ld (sprite_half_w), a
+	ld (sprite_h), a
+	ld (sprite_loc), hl
+	exx
+	ld b, 62
+	exx
+mirror_loop_e:
+	halt
+	ld de, mirror
+	ld hl, (sprite_loc)
+	call draw_sprite
+	ld a, (sprite_h)
+	inc a
+	ld (sprite_h), a
+	ld hl, (sprite_loc)
+	call y_fix_up
+	ld (sprite_loc), hl
+	exx
+	dec b
+	exx
+	jp nz, mirror_loop_e
+	
+	ld hl, (sprite_loc)
+	call y_fix_down
+	ld a, (sprite_h)
+	dec a
+	ld (sprite_h), a
+	ld de, erase
+	call draw_sprite
+	halt
+	ld a, $04
+    ld (sprite_half_w), a
+    ld a, $40
+    ld (sprite_h), a
+	jp anim_loop_end
+	
+fireball_e:
+	;;; START FIREBALL ANIMATION
+	ld hl, (sprite_orig)
+	ld e, $04
+	ld a, l
+	sub e
+	ld l, a
+	
+	ld (sprite_loc), hl
+
+	ld hl, (sprite_orig)
+	ld de, mage_e
+	call draw_sprite
+	
+	ld a, $02
+	ld (sprite_half_w), a
+	ld a, $18
+	ld (sprite_h), a
+	
+	exx
+	ld b, 3
+	exx
+fireball_charge_e:
+	exx
+	ld c, 8
+	exx
+	ld de, ball11
+fireball_loop_e:
+    halt
+    halt
+    halt
+    halt
+	ld hl, (sprite_loc)
+	call draw_sprite
+	exx
+	dec c
+	exx
+	jp nz, fireball_loop_e
+	
+	halt
+	ld de, ball17
+	ld hl, (sprite_loc)
+	call draw_sprite
+	halt
+	ld de, ball16
+	ld hl, (sprite_loc)
+	call draw_sprite
+	halt
+	ld de, ball15
+	ld hl, (sprite_loc)
+	call draw_sprite
+	halt
+	ld de, ball14
+	ld hl, (sprite_loc)
+	call draw_sprite
+	halt
+	ld de, ball13
+	ld hl, (sprite_loc)
+	call draw_sprite
+	halt
+	ld de, ball12
+	ld hl, (sprite_loc)
+	call draw_sprite
+	exx
+	dec b
+	exx
+	jp nz, fireball_charge_e
+	
+	halt
+
+	ld hl, ball11
+	ld (fireball_base), hl
+	exx
+	ld b, 7
+	exx
+fireball_go_e:
+	exx
+	ld c, 3
+	exx
+	ld hl, (fireball_base)
+	ld d, h
+	ld e, l
+fireball_part_e:
+	ld hl, (sprite_loc)
+	
+	call draw_sprite
+	halt
+	ld hl, (sprite_loc)
+	call y_fix_down
+	ld (sprite_loc), hl
+	exx
+	dec c
+	exx
+	jp nz, fireball_part_e
+	
+	
+	ld hl, $0060 ;;; Offset to next fireball part animation
+	ld d, h
+	ld e, l
+	ld hl, (fireball_base)
+	add hl, de
+	ld (fireball_base), hl
+	halt
+	ld hl, (sprite_loc)
+	ld de, erase
+	call draw_sprite
+	
+	ld hl, (sprite_loc)
+	dec l
+	ld (sprite_loc), hl
+	
+	
+	exx
+	dec b
+	exx
+	jp nz, fireball_go_e
+	
+	halt
+	ld de, ball19
+	ld hl, (sprite_loc)
+	call draw_sprite
+	
+	ld a, $02
+	ld (sprite_half_w), a
+	ld a, $18
+	ld (sprite_h), a
+	
+	halt
+	ld de, erase
+	ld hl, (sprite_loc)
+	call draw_sprite
+	ld a, $04
+    ld (sprite_half_w), a
+    ld a, $40
+    ld (sprite_h), a
+    
+    jp anim_loop_end
+	
+;;; Slash Branch
+slash_e:			;;;; Begin imported animation
+	exx
+	ld b, 4
+	exx
+knight_move_loop_e:
+	halt
+	ld de, knight2_e
+	ld hl, (sprite_loc)
+	call draw_sprite
+	halt	
+	ld de, knight5_e
+	ld hl, (sprite_loc)
+	call draw_sprite
+	halt
+	ld de, knight8_e
+	ld hl, (sprite_loc)
+	call draw_sprite
+
+	ld a, (sprite_loc)
+	dec a
+	ld (sprite_loc), a
+	
+	ld hl, (sprite_loc)
+	call y_fix_down
+	ld (sprite_loc), hl
+	exx
+	dec b
+	exx
+	jp nz, knight_move_loop_e
+
+	
+
+knight_move2_e:
+	exx
+	ld b, 7
+	exx
+knight_move_loop2_e:
+	halt
+	ld de, knight2_e
+	ld hl, (sprite_loc)
+	call draw_sprite
+	
+	ld hl, (sprite_loc)
+	call y_fix_down
+	ld (sprite_loc), hl
+	
+	halt	
+	ld de, knight6_e
+	ld hl, (sprite_loc)
+	call draw_sprite
+	halt
+	ld de, erase
+	ld hl, (sprite_loc)
+	call draw_sprite
+	
+	ld a, (sprite_loc)
+	dec a
+	ld (sprite_loc), a
+	
+	ld hl, (sprite_loc)
+	call y_fix_down
+	ld (sprite_loc), hl
+	exx
+	dec b
+	exx
+	jp nz, knight_move_loop2_e
+
+	ld d, $00
+	call att_set
+	halt
+	halt
+	halt
+	halt
+	halt
+	halt
+	halt
+	halt
+	halt
+	halt
+	halt
+	halt
+	ld d, $38
+	call att_set
+	halt
+	ld d, $00
+	call att_set
+	halt
+	halt
+	halt
+	halt
+	halt
+	halt
+	halt
+	halt
+
+	ld a, $59
+	ld (slash_att+1), a
+	ld a, $60
+	ld (slash_att), a
+	ld a, $4b
+	ld (slash_pix+1), a
+	ld a, $60
+	ld (slash_pix), a
+
+	call draw_slash
+	
+	ld d, $38
+	call att_set			;;; End of animation
+	jp anim_loop_end
+	
+heal_e:			;;;; heal branch;;;;
+     call heal_animation
+     jp anim_loop_end
+
+tackle_e:						;;;; Tackle Branch::::
+;;;; Begin imported animation
+	exx
+	ld b, 5
+	exx
+tackle_move_loop_e:			
+	halt
+	halt
+	ld de, knight2_e
+	ld hl, (sprite_loc)
+	call draw_sprite
+	halt
+	halt
+	ld de, knight6_e
+	ld hl, (sprite_loc)
+	call draw_sprite
+	halt
+	halt
+	ld de, knight8_e
+	ld hl, (sprite_loc)
+	call draw_sprite
+	
+	ld a, (sprite_loc)
+	dec a
+	ld (sprite_loc), a
+	
+	ld hl, (sprite_loc)
+	call y_fix_down
+	ld (sprite_loc), hl
+	exx
+	dec b
+	exx
+	jp nz, tackle_move_loop_e
+
+	ld a, (sprite_loc)
+	dec a
+	ld (sprite_loc), a
+	ld hl, (sprite_loc)
+	call y_fix_up
+	ld de, erase
+	call draw_sprite
+    
+    jp anim_loop_end
+tackle2_e:						;;;; Tackle Branch::::
+;;;; Begin imported animation
+	exx
+	ld b, 6
+	exx
+tackle_move_loop2_e:			
+	halt
+	halt
+	ld de, mage_e
+	ld hl, (sprite_loc)
+	call draw_sprite
+	halt
+	halt
+	halt
+	halt
+	halt
+	halt
+	halt
+	ld de, erase
+	ld hl, (sprite_loc)
+	call draw_sprite
+	
+	ld a, (sprite_loc)
+	dec a
+	ld (sprite_loc), a
+	
+	ld hl, (sprite_loc)
+	call y_fix_down
+	ld (sprite_loc), hl
+	exx
+	dec b
+	exx
+	jp nz, tackle_move_loop2_e
+
+	ld a, (sprite_loc)
+	inc a
+	ld (sprite_loc), a
+	ld hl, (sprite_loc)
+	call y_fix_up
+	ld de, erase
+	call draw_sprite
+    
+    jp anim_loop_end
+        
 anim_loop_end:
 		ld hl, $4800
 		push bc
