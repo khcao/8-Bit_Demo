@@ -1,4 +1,5 @@
-
+	   EXTERN _main
+_main:
        org 32768
 begin:
         call startup
@@ -2129,6 +2130,24 @@ animation_loop:
         push bc
         push de
         push hl
+        ld hl, $4000
+        ;;;; Clear third
+        ld bc, 2048
+pixel_clear_third:
+        ld (hl), $00
+        inc hl
+        dec bc
+        ld a, b
+        or c
+        jr nz, pixel_clear_third
+        ld bc, 256
+        ld h, d
+        ld l, e
+        
+        ld d, $38
+        call att_set
+        
+        
         
         ld a, 1				;;; Check if enemy logic
         cp c
@@ -2148,6 +2167,7 @@ animation_loop:
         add hl, de   ;;; Index into move queued
         ld a, (hl)
         
+        ;;;;;;;;;;;; Branch to animations;;;;;;;;;
         cp 16
         jp z, slash
        ; jp enemy_logic
@@ -2169,8 +2189,11 @@ slash:
         add hl, de
         ld  a ,(hl)
         ld (att), a
+        
 knight_move:			;;;; Begin imported animation
+	exx
 	ld b, 4
+	exx
 knight_move_loop:
 	halt
 	ld de, knight2
@@ -2192,11 +2215,17 @@ knight_move_loop:
 	ld hl, (sprite_loc)
 	call y_fix_up
 	ld (sprite_loc), hl
+	exx
 	dec b
+	exx
 	jp nz, knight_move_loop
+
 	
+
 knight_move2:
+	exx
 	ld b, 7
+	exx
 knight_move_loop2:
 	halt
 	ld de, knight2
@@ -2223,8 +2252,9 @@ knight_move_loop2:
 	ld hl, (sprite_loc)
 	call y_fix_up
 	ld (sprite_loc), hl
-	
+	exx
 	dec b
+	exx
 	jp nz, knight_move_loop2
 
 	ld d, $00
@@ -2814,7 +2844,6 @@ draw_sprite: ;;; Draw wxh sprite from location DE to HL (no OOB handle)
 	ld a, (sprite_h)
 	ld c, a
 loop_line:
-	
 	call sprite_line
 	call y_fix_down
 
@@ -2823,8 +2852,8 @@ loop_line:
 	
 	pop bc
 	ret ;;; Draw sprite ret
+	
 draw_att:
-	push bc
 	push hl
 	push de
 	;;; Calculate attribute
@@ -2871,7 +2900,6 @@ att_line_loop:
 	
 	pop de
 	pop hl
-	pop bc
 	ret
 sprite_half_w:
     defb $04
