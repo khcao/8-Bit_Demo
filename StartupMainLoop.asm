@@ -290,8 +290,8 @@ check_input_char_select:
 ;;; after the animation loop returns, update the data third of the screen, then continue this loop for the next attack
 ;;; after all 4 attacks have resolved-animated-resolved-animated, we jump back into main_loop
 action_resolve:
-        ;call load_random_enemy_attacks
-        call load_default_enemy_attacks
+        call load_random_enemy_attacks
+        ;call load_default_enemy_attacks
 
         ;;; load the original HP's of all the characters at the start of this turn resolution into the temporary spaces for HP calculation
         ;;; a = p1_c1's HP; b = p1_c2's HP; c = p2_c1's HP; d = p2_c2's HP
@@ -3807,13 +3807,13 @@ char_select_var:
         defb $00
 
 char_select_p1_c1:
-        defb $04
-char_select_p1_c2:
         defb $05
+char_select_p1_c2:
+        defb $04
 char_select_p2_c1:
-        defb $01
-char_select_p2_c2:
         defb $03
+char_select_p2_c2:
+        defb $02
 
 move_order:
         defb $02, $31
