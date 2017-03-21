@@ -2495,8 +2495,31 @@ fireball_part:
     ld (sprite_half_w), a
     ld a, $40
     ld (sprite_h), a
-    
+    push bc
+    call fireball_sound 
+    pop bc
     jp anim_loop_end
+
+fireball_sound:
+    ld hl,$2fff
+    ld b,$ff
+fireball_soundloop:
+    ld c,$ff
+fb_delay1:
+    dec c
+    jr nz,fb_delay1
+    ld a,(hl)
+    and $10
+    out ($fe),a
+    ld c,$ff
+fb_delay2:
+    dec c
+    jr nz,fb_delay2
+
+    inc hl
+    djnz fireball_soundloop
+
+    ret
 	
 ;;; Slash Branch
 slash:			;;;; Begin imported animation
@@ -2603,11 +2626,12 @@ knight_move_loop2:
 	ld (slash_pix+1), a
 	ld a, $60
 	ld (slash_pix), a
-
+    call slash_sound
+    call att_set
 	call draw_slash
-	
+
 	ld d, $38
-	call att_set			;;; End of animation
+			;;; End of animation
 	jp anim_loop_end
 	
 heal:			;;;; heal branch;;;;
@@ -3108,8 +3132,26 @@ knight_move_loop2_e:
 	call draw_slash
 	
 	ld d, $38
+
 	call att_set			;;; End of animation
 	jp anim_loop_end
+
+slash_sound:
+    ld hl,$04fe
+    ld b,$ff
+slash_soundloop:
+    ld a,(hl)
+    and $10
+    out ($fe),a
+    ld c,$32
+dlay:
+    dec c
+    jr nz,dlay
+    inc hl
+
+    djnz slash_soundloop
+
+    ret
 	
 heal_e:			;;;; heal branch;;;;
      call heal_animation
