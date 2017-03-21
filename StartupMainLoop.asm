@@ -2690,11 +2690,7 @@ enemy_logic:
         ld e, 6
         add hl, de   ;;; Index into move queued
         ld a, (hl)
-        ;;;;;;;;;;TEST AREA::::::::
-        jp slash_e
-       ;;;;;;;;;;;;;;;
-        
-        
+
         cp 0
         jp z, anim_loop_end
         cp 1
