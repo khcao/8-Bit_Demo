@@ -1,5 +1,5 @@
-	   EXTERN _main
-_main:
+;	   EXTERN _main
+;_main:
        org 32768
 begin:
         call startup
@@ -1804,11 +1804,11 @@ update_data:
 update_data_preloop:
         ld a, c
         cp 0
-        jr z, update_data_preloop_c1
+        jp z, update_data_preloop_c1
         cp 1
-        jr z, update_data_preloop_c2
+        jp z, update_data_preloop_c2
         cp 2
-        jr z, update_data_preloop_c3
+        jp z, update_data_preloop_c3
         ;cp 3
         ;jr z, update_data_preloop_c4
 update_data_preloop_c4:
@@ -1821,6 +1821,17 @@ update_data_preloop_c4:
         inc hl
         ld de, $3DD0
         call print_char_to_data
+        inc hl
+        inc hl
+        ld de, $3E18
+        call print_char_to_data
+        push hl
+        ld hl, char_select_p2_c2
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        pop hl
+        inc hl
+        call print_char_to_data
         jp update_data_loop
 update_data_preloop_c1:
         ld hl, $0042                                            ; begin printing A1's stats with "A1:"
@@ -1831,6 +1842,17 @@ update_data_preloop_c1:
         call print_char_to_data
         inc hl
         ld de, $3DD0
+        call print_char_to_data
+        inc hl
+        inc hl
+        ld de, $3E18
+        call print_char_to_data
+        push hl
+        ld hl, char_select_p1_c1
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        pop hl
+        inc hl
         call print_char_to_data
         jp update_data_loop
 update_data_preloop_c2:
@@ -1843,6 +1865,17 @@ update_data_preloop_c2:
         inc hl
         ld de, $3DD0
         call print_char_to_data
+        inc hl
+        inc hl
+        ld de, $3E18
+        call print_char_to_data
+        push hl
+        ld hl, char_select_p1_c2
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        pop hl
+        inc hl
+        call print_char_to_data
         jp update_data_loop
 update_data_preloop_c3:
         ld hl, $0082                                            ; begin printing E1's stats with "E1:"
@@ -1853,6 +1886,17 @@ update_data_preloop_c3:
         call print_char_to_data
         inc hl
         ld de, $3DD0
+        call print_char_to_data
+        inc hl
+        inc hl
+        ld de, $3E18
+        call print_char_to_data
+        push hl
+        ld hl, char_select_p2_c1
+        ld a, (hl)
+        call hex_byte_to_ROM_char
+        pop hl
+        inc hl
         call print_char_to_data
 update_data_loop:
         push bc
@@ -1989,6 +2033,8 @@ update_data_loop:
 ;;; output hl = the ROM address of the character described in the first 4 bits (or first hex character) of a
 ;;; output de = the ROM address of the character described in the last 4 bits (or last hex character) of a
 hex_byte_to_ROM_char:
+        push af
+        push bc
         ld b, a
         and $0F                                                 ; store bottom 4 bits in c
         ld c, a
@@ -2090,6 +2136,8 @@ hex_byte_to_ROM_char_end:
         ld a, c
         jp hex_byte_to_ROM_char_loop
 hex_byte_to_ROM_char_end2:
+        pop bc
+        pop af
         ret
 
 ; Beep duration can be increased by increasing value loaded into C
