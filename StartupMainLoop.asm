@@ -2193,21 +2193,37 @@ pixel_clear_third:
         add hl, de   ;;; Index into move queued
         ld a, (hl)
         cp 0
-        jp z, tackle
+        jp z, anim_loop_end
         cp 1
         jp z, heal   ;;;; TENTATIVE
         cp 2
         jp z, tackle2
+        cp 3
+        jp z, armor
+        cp 4
+        jp z, heal
+        cp 5
+        jp z, armor
+        cp 6
+        jp z, mresist
+        cp 7
+        jp z, heal
+        cp 8
+        jp z, mresist
         cp 9
         jp z, tackle2
+        cp 10
+        jp z, heal
         cp 11
         jp z, tackle
         cp 12
         jp z, fireball
+        cp 13
+        jp z, fireball
         cp 14
         jp z, fireball
-        
-        
+        cp 15
+        jp z, armor
         cp 16
         jp z, slash
         cp 17
@@ -2215,7 +2231,89 @@ pixel_clear_third:
         cp 18
         jp z, tackle
         jp enemy_logic
-       
+        
+armor:
+    ld hl, $47F0
+	ld b, 63
+	call y_down_loop
+	
+	ld a, 1
+	ld (sprite_half_w), a
+	ld (sprite_h), a
+	ld (sprite_loc), hl
+	exx
+	ld b, 62
+	exx
+wall_loop:
+	halt
+	ld de, wall
+	ld hl, (sprite_loc)
+	call draw_sprite
+	ld a, (sprite_h)
+	inc a
+	ld (sprite_h), a
+	ld hl, (sprite_loc)
+	call y_fix_up
+	ld (sprite_loc), hl
+	exx
+	dec b
+	exx
+	jp nz, wall_loop
+	
+	ld hl, (sprite_loc)
+	call y_fix_down
+	ld a, (sprite_h)
+	dec a
+	ld (sprite_h), a
+	ld de, erase
+	call draw_sprite
+	halt
+	ld a, $04
+    ld (sprite_half_w), a
+    ld a, $40
+    ld (sprite_h), a
+	jp anim_loop_end
+mresist:
+    ld hl, $47F0
+	ld b, 63
+	call y_down_loop
+	
+	ld a, 1
+	ld (sprite_half_w), a
+	ld (sprite_h), a
+	ld (sprite_loc), hl
+	exx
+	ld b, 62
+	exx
+mirror_loop:
+	halt
+	ld de, mirror
+	ld hl, (sprite_loc)
+	call draw_sprite
+	ld a, (sprite_h)
+	inc a
+	ld (sprite_h), a
+	ld hl, (sprite_loc)
+	call y_fix_up
+	ld (sprite_loc), hl
+	exx
+	dec b
+	exx
+	jp nz, mirror_loop
+	
+	ld hl, (sprite_loc)
+	call y_fix_down
+	ld a, (sprite_h)
+	dec a
+	ld (sprite_h), a
+	ld de, erase
+	call draw_sprite
+	halt
+	ld a, $04
+    ld (sprite_half_w), a
+    ld a, $40
+    ld (sprite_h), a
+	jp anim_loop_end
 fireball:
 	;;; START FIREBALL ANIMATION
 	ld e, $08
@@ -2466,9 +2564,6 @@ knight_move_loop2:
 	jp anim_loop_end
 	
 heal:			;;;; heal branch;;;;
-	ld de, mage
-	ld hl, (sprite_loc)
-	call draw_sprite
 	
      call heal_animation
      jp anim_loop_end
