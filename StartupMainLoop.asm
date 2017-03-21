@@ -22,6 +22,67 @@ char_select_loop:
         jp char_select_loop
 
 start_battle:
+	;;; Fill in char_sprites with corresponding pointer to sprite
+        ;;; CHAR1
+        ld de, $02
+        ld a, (char_select_p1_c1)
+        cp a, 3
+        jp c, put_mage
+        cp a, 4
+        jp z, put_mage
+put_knight:
+		ld hl, knight2
+        ld (char_sprites), hl
+        jp put_done
+put_mage:
+		ld hl, mage	
+        ld (char_sprites), hl
+put_done:
+        ;;;CHAR2
+        ld a, (char_select_p1_c2)
+        cp a, 3
+        jp c, put_mage2
+        cp a, 4
+        jp z, put_mage2
+put_knight2:
+		ld hl, knight2
+		ld (char_sprites+2), hl
+        jp put_done2
+put_mage2:
+		ld hl, mage	
+        ld (char_sprites+2), hl
+put_done2:            
+        ;;;CHAR3
+        ld a, (char_select_p2_c1)
+        cp a, 3
+        jp c, put_mage3
+        cp a, 4
+        jp z, put_mage3
+put_knight3:
+		ld hl, knight2_e
+		ld (char_sprites+4), hl
+        jp put_done3
+put_mage3:
+		ld hl, mage_e
+        ld (char_sprites+4), hl
+put_done3:      
+        ;;;CHAR4
+        ld a, (char_select_p2_c2)
+        cp a, 3
+        jp c, put_mage4
+        cp a, 4
+        jp z, put_mage4
+put_knight4:
+		ld hl, knight2_e
+		ld (char_sprites+6), hl
+        jp put_done4
+put_mage4:
+		ld hl, mage_e
+        ld (char_sprites+6), hl
+put_done4:
+
+
+
         ld hl, bordered_third_px_buf                            ; draw default background for data (top) third of screen
         ld de, $4000
         ld bc, 2048
@@ -2182,6 +2243,26 @@ animation_loop:
         ;;;; Clear third
         push bc
         ld bc, 2048
+pixel_clear_third0:
+        ld (hl), $00
+        inc hl
+        dec bc
+        ld a, b
+        or c
+        jr nz, pixel_clear_third0
+        ld bc, 256
+        ld h, d
+        ld l, e
+        
+        ld d, $38
+        call att_set
+        pop bc
+        
+        
+        ld hl, $4800
+        ;;;; Clear third
+        push bc
+        ld bc, 2048
 pixel_clear_third:
         ld (hl), $00
         inc hl
@@ -2197,17 +2278,16 @@ pixel_clear_third:
         call att_set
         pop bc
         
+        ld a, $04
+        ld (sprite_half_w), a
+        ld a, $40
+        ld (sprite_h), a
         
         ld a, 1				;;; Check if enemy logic
         cp c
         jp c, enemy_logic
         						;;;;;; Friendly Prep
         
-        
-        ;;;; print enemy sprites TODOOOO
-        ld hl, $1740
-        
-        ld hl, $1748
         
         
         ld hl, $47E0
@@ -2227,6 +2307,8 @@ pixel_clear_third:
         add hl, de
         ld  a ,(hl)
         ld (att), a
+        
+        
         ;;;;;;;;;;;; Branch to animations;;;;;;;;;
         ld a, c			;;; Get offset by rotate
         rlca
@@ -2279,7 +2361,30 @@ pixel_clear_third:
         cp 18
         jp z, tackle
         jp anim_loop_end
+        
 armor:
+		ld a, $04
+		ld (sprite_half_w), a
+		ld a, $40
+		ld (sprite_h), a
+	
+		ld a, (char_colors)
+        ld (att), a
+        
+		ld de, $47E0
+        ld hl, (char_sprites)
+        ex de, hl
+        halt
+        call draw_sprite
+        
+        ld a, (char_colors+1)
+        ld (att), a
+        
+        ld de, $47E8
+        ld hl, (char_sprites+2)
+        ex de, hl
+        halt
+        call draw_sprite
     ld hl, $47F0
 	ld b, 63
 	call y_down_loop
@@ -2321,6 +2426,28 @@ wall_loop:
     ld (sprite_h), a
 	jp anim_loop_end
 mresist:
+	ld a, $04
+		ld (sprite_half_w), a
+		ld a, $40
+		ld (sprite_h), a
+	
+		ld a, (char_colors)
+        ld (att), a
+        
+		ld de, $47E0
+        ld hl, (char_sprites)
+        ex de, hl
+        halt
+        call draw_sprite
+        
+        ld a, (char_colors+1)
+        ld (att), a
+        
+        ld de, $47E8
+        ld hl, (char_sprites+2)
+        ex de, hl
+        halt
+        call draw_sprite
     ld hl, $47F0
 	ld b, 63
 	call y_down_loop
@@ -2362,6 +2489,23 @@ mirror_loop:
     ld (sprite_h), a
 	jp anim_loop_end
 fireball:
+	ld a, (char_colors+2)
+        ld (att), a
+      
+      ld de, $4010
+      ld hl, (char_sprites+4)
+      ex de, hl
+      halt
+      call draw_sprite
+        
+      ld a, (char_colors+3)
+      ld (att), a
+        
+      ld de, $4017
+      ld hl, (char_sprites+6)
+      ex de, hl
+      halt
+      call draw_sprite
 	;;; START FIREBALL ANIMATION
 	ld e, $08
 	ld d, $00
@@ -2523,6 +2667,24 @@ fb_delay2:
 	
 ;;; Slash Branch
 slash:			;;;; Begin imported animation
+	ld a, (char_colors+2)
+     ld (att), a
+      
+      ld de, $4010
+      ld hl, (char_sprites+4)
+      ex de, hl
+      halt
+      call draw_sprite
+        
+      ld a, (char_colors+3)
+      ld (att), a
+        
+      ld de, $4017
+      ld hl, (char_sprites+6)
+      ex de, hl
+      halt
+      call draw_sprite
+      
 	exx
 	ld b, 4
 	exx
@@ -2635,6 +2797,28 @@ knight_move_loop2:
 	jp anim_loop_end
 	
 heal:			;;;; heal branch;;;;
+		ld a, $04
+		ld (sprite_half_w), a
+		ld a, $40
+		ld (sprite_h), a
+	
+		ld a, (char_colors)
+        ld (att), a
+        
+		ld de, $47E0
+        ld hl, (char_sprites)
+        ex de, hl
+        halt
+        call draw_sprite
+        
+        ld a, (char_colors+1)
+        ld (att), a
+        
+        ld de, $47E8
+        ld hl, (char_sprites+2)
+        ex de, hl
+        halt
+        call draw_sprite
      call heal_animation
      jp anim_loop_end
 
@@ -2644,6 +2828,23 @@ line_width:
 	defb $FF, $3C, $18, $18, $7E, $FF
 	
 tackle:						;;;; Tackle Branch::::
+	ld a, (char_colors+2)
+        ld (att), a
+      
+      ld de, $4010
+      ld hl, (char_sprites+4)
+      ex de, hl
+      halt
+      call draw_sprite
+        
+      ld a, (char_colors+3)
+      ld (att), a
+        
+      ld de, $4017
+      ld hl, (char_sprites+6)
+      ex de, hl
+      halt
+      call draw_sprite
 ;;;; Begin imported animation
 	exx
 	ld b, 5
@@ -2687,6 +2888,23 @@ tackle_move_loop:
     
     jp anim_loop_end
 tackle2:						;;;; Tackle Branch::::
+	ld a, (char_colors+2)
+        ld (att), a
+      
+      ld de, $4010
+      ld hl, (char_sprites+4)
+      ex de, hl
+      halt
+      call draw_sprite
+        
+      ld a, (char_colors+3)
+      ld (att), a
+        
+      ld de, $4017
+      ld hl, (char_sprites+6)
+      ex de, hl
+      halt
+      call draw_sprite
 ;;;; Begin imported animation
 	exx
 	ld b, 6
@@ -2731,6 +2949,8 @@ tackle_move_loop2:
     jp anim_loop_end
 
 enemy_logic:
+		
+	
 		ld hl, $400F
         ld a, c
         sub 2
@@ -2804,6 +3024,24 @@ enemy_logic:
         jp anim_loop_end
 
 armor_e:
+	ld a, (char_colors+2)
+        ld (att), a
+      
+      ld de, $4010
+      ld hl, (char_sprites+4)
+      ex de, hl
+      halt
+      call draw_sprite
+        
+      ld a, (char_colors+3)
+      ld (att), a
+        
+      ld de, $4017
+      ld hl, (char_sprites+6)
+      ex de, hl
+      halt
+      call draw_sprite
+      
     ld hl, $4012
 	ld b, 63
 	call y_down_loop
@@ -2845,6 +3083,24 @@ wall_loop_e:
     ld (sprite_h), a
 	jp anim_loop_end
 mresist_e:
+	ld a, (char_colors+2)
+       ld (att), a
+      
+      ld de, $4010
+      ld hl, (char_sprites+4)
+      ex de, hl
+      halt
+      call draw_sprite
+        
+      ld a, (char_colors+3)
+      ld (att), a
+        
+      ld de, $4017
+      ld hl, (char_sprites+6)
+      ex de, hl
+      halt
+      call draw_sprite
+      
     ld hl, $4012
 	ld b, 63
 	call y_down_loop
@@ -2887,6 +3143,28 @@ mirror_loop_e:
 	jp anim_loop_end
 	
 fireball_e:
+		ld a, $04
+		ld (sprite_half_w), a
+		ld a, $40
+		ld (sprite_h), a
+	
+		ld a, (char_colors)
+        ld (att), a
+        
+		ld de, $47E0
+        ld hl, (char_sprites)
+        ex de, hl
+        halt
+        call draw_sprite
+        
+        ld a, (char_colors+1)
+        ld (att), a
+        
+        ld de, $47E8
+        ld hl, (char_sprites+2)
+        ex de, hl
+        halt
+        call draw_sprite
 	;;; START FIREBALL ANIMATION
 	ld hl, (sprite_orig)
 	ld e, $04
@@ -3026,6 +3304,28 @@ fireball_part_e:
 	
 ;;; Slash Branch
 slash_e:			;;;; Begin imported animation
+		ld a, $04
+		ld (sprite_half_w), a
+		ld a, $40
+		ld (sprite_h), a
+	
+		ld a, (char_colors)
+        ld (att), a
+        
+		ld de, $47E0
+        ld hl, (char_sprites)
+        ex de, hl
+        halt
+        call draw_sprite
+        
+        ld a, (char_colors+1)
+        ld (att), a
+        
+        ld de, $47E8
+        ld hl, (char_sprites+2)
+        ex de, hl
+        halt
+        call draw_sprite
 	exx
 	ld b, 4
 	exx
@@ -3154,10 +3454,50 @@ dlay:
     ret
 	
 heal_e:			;;;; heal branch;;;;
+	  ld a, (char_colors+2)
+        ld (att), a
+      
+      ld de, $4010
+      ld hl, (char_sprites+4)
+      ex de, hl
+      halt
+      call draw_sprite
+        
+      ld a, (char_colors+3)
+      ld (att), a
+        
+      ld de, $4017
+      ld hl, (char_sprites+6)
+      ex de, hl
+      halt
+      call draw_sprite
+      
      call heal_animation
      jp anim_loop_end
 
 tackle_e:						;;;; Tackle Branch::::
+		ld a, $04
+		ld (sprite_half_w), a
+		ld a, $40
+		ld (sprite_h), a
+	
+		ld a, (char_colors)
+        ld (att), a
+        
+		ld de, $47E0
+        ld hl, (char_sprites)
+        ex de, hl
+        halt
+        call draw_sprite
+        
+        ld a, (char_colors+1)
+        ld (att), a
+        
+        ld de, $47E8
+        ld hl, (char_sprites+2)
+        ex de, hl
+        halt
+        call draw_sprite
 ;;;; Begin imported animation
 	exx
 	ld b, 5
@@ -3201,6 +3541,28 @@ tackle_move_loop_e:
     
     jp anim_loop_end
 tackle2_e:						;;;; Tackle Branch::::
+		ld a, $04
+		ld (sprite_half_w), a
+		ld a, $40
+		ld (sprite_h), a
+	
+		ld a, (char_colors)
+        ld (att), a
+        
+		ld de, $47E0
+        ld hl, (char_sprites)
+        ex de, hl
+        halt
+        call draw_sprite
+        
+        ld a, (char_colors+1)
+        ld (att), a
+        
+        ld de, $47E8
+        ld hl, (char_sprites+2)
+        ex de, hl
+        halt
+        call draw_sprite
 ;;;; Begin imported animation
 	exx
 	ld b, 6
@@ -3271,7 +3633,64 @@ pixel_clear_third2:
 
 ;;; this method is called to draw the inert sprites into the middle third of the screen
 update_visual:
-
+		push af
+		push bc
+		push de
+		push hl
+		
+		ld a, $04
+		ld (sprite_half_w), a
+		ld a, $29
+		ld (sprite_h), a
+	
+		ld a, (char_colors)
+        ld (att), a
+        
+		ld de, $47E0
+        ld hl, (char_sprites)
+        ex de, hl
+        ld b, 12
+        call y_down_loop
+        halt
+        call draw_sprite
+        
+        ld a, (char_colors+1)
+        ld (att), a
+        
+        ld de, $47E8
+        ld hl, (char_sprites+2)
+        ex de, hl
+        ld b, 12
+        call y_down_loop
+        halt
+        call draw_sprite
+        
+        ld a, (char_colors+2)
+        ld (att), a
+        
+        ld de, $47F0
+        ld hl, (char_sprites+4)
+        ex de, hl
+        ld b, 12
+        call y_down_loop
+        halt
+        call draw_sprite
+        
+        ld a, (char_colors+3)
+        ld (att), a
+        
+        ld de, $47F7
+        ld hl, (char_sprites+6)
+        ex de, hl
+        ld b, 12
+        call y_down_loop
+        halt
+        call draw_sprite
+		
+		pop hl
+		pop de
+		pop bc
+		pop af
         ret
 
 heal_animation:
@@ -3461,7 +3880,9 @@ post_battle_damage:
         defb $00
 char_colors:
         defb $3A, $38, $3C, $39
-
+char_sprites:
+		defb $00, $00,$00,$00,$00,$00,$00,$00
+		
 bordered_third_px_buf:
         defs 33, $ff
         defs 30, $00
