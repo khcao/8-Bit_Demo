@@ -36,6 +36,8 @@ outer_loop:
         ld a, b
         cp $31                                                   ; outer_loop counter (stops after b-1 times)
         jp z, outer_loop_exit
+        cp $32
+        jp z, heal_animation_end
         push bc
         ld c, d
         push hl
@@ -112,8 +114,21 @@ reset:
 	ld de, line_width
 	push de
 	jp outer_loop
-
 outer_loop_exit:
+	push bc
+        ld c, d
+        push hl
+        ld b, $00
+        ld hl, (line_above_sprite); $5082                                            ; location of the start of the sprites
+        push hl
+        ld h, $40
+        ld a, l
+        and $1F
+        ld l, a
+        halt
+        halt
+        call inner_loop
+heal_animation_end:
 
 
 ;;; location in pixel memory of the byte above the leftmost, topmost byte of the sprite
