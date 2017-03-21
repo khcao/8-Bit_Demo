@@ -226,7 +226,7 @@ check_input_char_select:
 ;;; after all 4 attacks have resolved-animated-resolved-animated, we jump back into main_loop
 action_resolve:
         ;call load_random_enemy_attacks
-
+        call load_default_enemy_attacks
 
         ;;; load the original HP's of all the characters at the start of this turn resolution into the temporary spaces for HP calculation
         ;;; a = p1_c1's HP; b = p1_c2's HP; c = p2_c1's HP; d = p2_c2's HP
@@ -304,7 +304,7 @@ action_resolve_loop:
 
 ;;; <types: phys(1), magic(2), armor(3), MR(4), heal(5), dodge(6), MR debuff(7)>
 ;;; < cd, type, value, 10-byte name (offset from a, $ff = space)>
-;;; <status byte: (n/a, n/a, n/a, str_mr, weak_mr, str_arm, weak_arm, mr_debuff)>
+;;; <status byte: (n/a, n/a, dodge, str_mr, weak_mr, str_arm, weak_arm, mr_debuff)>
         inc hl                                                  ; move to the types
         ld a, (hl)
         cp $01
@@ -320,7 +320,18 @@ action_resolve_loop:
         cp $06
         jp z, action_resolve_case_dodge
 action_resolve_case_debuff:
-
+        pop hl                                                  ; grab the location of the target byte
+        push hl
+        ld e, (hl)                                              ; index into the target's in_battle struct (namely the status byte)
+        ld d, 0
+        ld hl, 8
+        call simple_multiply
+        ld de, in_battle_chars
+        add hl, de
+        inc hl                                                  ; increment into the 2nd byte of the struct - the status byte
+        ld a, (hl)
+        or 1                                                    ; flip on the mr_debuff bit
+        ld (hl), a
         jp action_resolve_case_end
 action_resolve_case_phys:
         ;;; first grab the value byte while we are here
@@ -341,11 +352,10 @@ action_resolve_case_phys:
         ld a, d                                                 ; clear out the armor buff bits (no matter what, this attack nullifies all armor buffs)
         and $F9
         ld (hl), a
-
         ld a, d
         and $06                                                 ; check the 2nd and 3rd least significant bits of the target's status byte for the weak armor and strong armor buffs
         ld d, a
-        cp $04                                                  ; if the "strong armor buff" bit is set in the target's status byte, remove 50 damage (max) from the damage kept in b
+        cp $04                                                  ; if ONLY the "strong armor buff" bit is set in the target's status byte, remove 50 damage (max) from the damage kept in b
         jr z, action_resolve_case_phys_strong_buff
         cp 0                                                    ; if no armor buffs are indicated in the target's status byte, remove nothing from the damage
         jr z, action_resolve_case_phys_apply_damage
@@ -383,35 +393,243 @@ action_resolve_case_phys_end:
         ld (hl), a
         ld hl, post_battle_damage
         ld (hl), b
-
         jp action_resolve_case_end
 action_resolve_case_magic:
-
+        ;;; first grab the value byte while we are here
+        inc hl
+        ld b, (hl)                                              ; hold the damage of the attack in b
+        ;;; grab the queued target byte
+        pop hl
+        push hl
+        ld e, (hl)                                              ; index into the target's in_battle struct (namely the status byte)
+        ld d, 0
+        ld hl, 8
+        call simple_multiply
+        ld de, in_battle_chars
+        add hl, de
+        inc hl
+        ld d, (hl)                                              ; hold the status byte in d
+        ld a, d                                                 ; clear out the MR buff bits (no matter what, this attack nullifies all MR buffs) and MR debuff bit
+        and $E6
+        ld (hl), a
+        ;;; check if the debuff applies to the target
+        ld a, d
+        and $01                                                 ; if the least significant bit is set, then add 20 damage
+        cp $01
+        jr nz, action_resolve_case_magic_no_debuff
+action_resolve_case_magic_apply_debuff:
+        ld a, b
+        add 20
+        ld b, a
+action_resolve_case_magic_no_debuff:
+        ;;; check if the MR buffs apply to the target
+        ld a, d
+        and $18                                                 ; check the 4th and 5th least significant bits of the target's status byte for the weak MR and strong MR buffs
+        ld d, a
+        cp $10                                                  ; if ONLY the "strong MR buff" bit is set in the target's status byte, remove 50 damage (max) from the damage kept in b
+        jr z, action_resolve_case_magic_strong_buff
+        cp 0                                                    ; if no MR buffs are indicated in the target's status byte, remove nothing from the damage at this point
+        jr z, action_resolve_case_magic_apply_inherent_MR
+action_resolve_case_magic_weak_buff:                             ; for all other cases, move into the weak buff damage removal
+        ld a, b
+        sub 20
+        jp m, action_resolve_case_magic_no_damage                ; if the subtraction ends in a negative number, remake the damage to be 0
+        ld b, a
+        ld a, d                                                 ; check if both MR buff bits are set
+        cp $18                                                  ; if not, then skip the strong buff damage reduction calculation
+        jp nz, action_resolve_case_magic_apply_inherent_MR
+action_resolve_case_magic_strong_buff:
+        ld a, b
+        sub 50
+        jp m, action_resolve_case_magic_no_damage                ; if the subtraction ends in a negative number, remake the damage to be 0
+        ld b, a
+        jr action_resolve_case_magic_apply_inherent_MR
+action_resolve_case_magic_apply_inherent_MR:
+        ;;; subtract from the damage the inherent MR of the target
+        pop hl
+        push hl
+        ld e, (hl)
+        ld d, 0
+        ld hl, 8
+        call simple_multiply
+        ld de, in_battle_chars
+        add hl, de
+        inc hl
+        inc hl
+        ld e, (hl)
+        ld a, b
+        sub e
+        jp m, action_resolve_case_magic_no_damage
+        ld b, a
+        jr action_resolve_case_magic_apply_damage
+action_resolve_case_magic_no_damage:
+        ld b, 0
+action_resolve_case_magic_apply_damage:
+        pop hl
+        push hl
+        ld l, (hl)                                              ; grab the target byte again
+        ld h, 0
+        ld de, post_battle_HP
+        add hl, de
+        ld a, (hl)                                              ; grab the temp HP of the target
+        sub b                                                   ; subtract the damage from the HP, leave it at zero if it becomes negative
+        cp $97                                                  ; since our highest HP value (150) has the most significant bit set to 1, we must check "negative numbers" to be anything >= 151; change any value >= 151 to be 0
+        jp c, action_resolve_case_magic_end
+action_resolve_case_magic_no_life:
+        ld a, 0
+action_resolve_case_magic_end:
+        ;;; replace the target's new HP with e
+        ld (hl), a
+        ld hl, post_battle_damage
+        ld (hl), b
         jp action_resolve_case_end
 action_resolve_case_armor:
-
+        ;;; first grab the value byte while we are here
+        inc hl
+        ld b, (hl)                                              ; hold the buff amount in b
+        ;;; grab the target byte again
+        pop hl
+        push hl
+        ld e, (hl)                                              ; index into the target's in_battle struct (namely the status byte)
+        ld d, 0
+        ld hl, 8
+        call simple_multiply
+        ld de, in_battle_chars
+        add hl, de
+        inc hl
+        ld d, (hl)                                              ; hold the status byte in d
+        ld a, b
+        cp $32
+        jp z, action_resolve_case_armor_strong
+action_resolve_case_armor_weak:
+        ld a, d
+        or $02
+        ld (hl), a
+        jp action_resolve_case_armor_end
+action_resolve_case_armor_strong:
+        ld a, d
+        or $04
+        ld (hl), a
+action_resolve_case_armor_end:
         jp action_resolve_case_end
 action_resolve_case_MR:
-
+        ;;; first grab the value byte while we are here
+        inc hl
+        ld b, (hl)                                              ; hold the buff amount in b
+        ;;; grab the target byte again
+        pop hl
+        push hl
+        ld e, (hl)                                              ; index into the target's in_battle struct (namely the status byte)
+        ld d, 0
+        ld hl, 8
+        call simple_multiply
+        ld de, in_battle_chars
+        add hl, de
+        inc hl
+        ld d, (hl)                                              ; hold the status byte in d
+        ld a, b
+        cp $32
+        jp z, action_resolve_case_MR_strong
+action_resolve_case_MR_weak:
+        ld a, d
+        or $08
+        ld (hl), a
+        jp action_resolve_case_MR_end
+action_resolve_case_MR_strong:
+        ld a, d
+        or $10
+        ld (hl), a
+action_resolve_case_MR_end:
         jp action_resolve_case_end
 action_resolve_case_heal:
-
+        ;;; first grab the value byte while we are here
+        inc hl
+        ld b, (hl)                                              ; hold the heal amount in b
+        ;;; grab the target byte again
+        pop hl
+        push hl
+        ld e, (hl)                                              ; e hold the target index; index into post_battle_HP to grab the current temp HP
+        ld d, 0
+        ld hl, post_battle_HP
+        add hl, de
+        ld a, (hl)                                              ; hold the temp, target HP in a
+        ;;; check if target's temp HP is already 0
+        cp 0                                                    ; do not heal if HP is already 0
+        jp z, action_resolve_case_end
+        add a, b                                                ; heal otherwise
+        ld b, a                                                 ; now throw away the heal amount in b and save the newly healed HP into b
+        ;;; check if past max HP
+        ld hl, char_select_p1_c1                                ; index into the character choices to find the index into the character dictionary
+        add hl, de
+        ld e, (hl)                                              ; index into the character dictionary to grab the original MAX HP of the target character
+        ld d, 0
+        ld hl, 6
+        call simple_multiply
+        ld de, char_data
+        add hl, de
+        ld a, (hl)                                              ; load the original max HP of the target into a
+        cp b                                                    ; if the temp HP is still less than the max HP then go ahead and end this loop
+        jp nc, action_resolve_case_heal_end
+        ld b, a
+action_resolve_case_heal_end:   
+        pop hl
+        push hl
+        ld e, (hl)
+        ld d, 0
+        ld hl, post_battle_HP
+        add hl, de
+        ld (hl), b
         jp action_resolve_case_end
 action_resolve_case_dodge:
-
+        ld e, c
+        ld d, 0
+        ld hl, 8
+        call simple_multiply
+        ld de, in_battle_chars
+        add hl, de
+        inc hl
+        ld a, (hl)
+        or $20
+        ld (hl), a
 action_resolve_case_end:
+        pop hl                                                  ; pop the target byte from the stack to "empty" it for now
 
-        pop hl                                                  ; grab the queued target byte
-
-        ;;; call the animation loop here
+        ;;; call the animation loop here; pass in whose turn is resolving (held in c; an index of the in_battle_character entries [0 - 3])
 
 
 action_resolve_loop_end:
         inc c
         jp action_resolve_preloop
 action_resolve_loop_exit:
-
-
+action_resolve_check_dodge:
+        ;;; check for the dodge case before we finish
+        ld c, 0
+action_resolve_check_dodge_loop:
+        ld a, c                                                 ; check for loop escape
+        cp $04
+        jp z, action_resolve_check_dodge_loop_exit
+        ld e, c                                                 ; otherwise, index into the in_battle_chars structure
+        ld d, 0
+        ld hl, 8
+        call simple_multiply
+        ld de, in_battle_chars
+        add hl, de
+        inc hl                                                  ; grab the status byte
+        ld a, (hl)
+        and $20                                                 ; mask the status for the dodge bit
+        cp $00                                                  ; if dodge bit not set, then skip dodge logic
+        jr z, action_resolve_check_dodge_no_dodge
+        dec hl                                                  ; if dodge bit is set, grab the "pre action_resolve" HP
+        ld a, (hl)
+        ld e, c
+        ld d, 0
+        ld hl, post_battle_HP                                   ; and set our temp HP to be equal to "pre action_resolve" HP
+        add hl, de
+        ld (hl), a
+action_resolve_check_dodge_no_dodge:
+        inc c
+        jp action_resolve_check_dodge_loop
+action_resolve_check_dodge_loop_exit:
         ld hl, post_battle_HP                                   ; apply all post battle HP's to the character stats structure
         ld a, (hl)
         inc hl
@@ -504,7 +722,7 @@ check_game_over_check_win:
         jr nz, check_game_over_end
         ;jr check_game_over_display_win
 check_game_over_display_win:
-
+        
 
         jr check_game_over_end
 check_game_over_display_loss:
@@ -549,7 +767,16 @@ randomize:
 seed:
         defw 0
 
-;;; NOTE: THIS METHOD DISREGARDS ANY COOLDOWN RESTRICTIONS OF ANY SORT
+;;; This method loads STRUGGLE for each enemy against corresponding ally characters
+load_default_enemy_attacks:
+        ld hl, in_battle_chars
+        ld de, 31
+        add hl, de
+        ld a, $01
+        ld (hl), a
+        ret
+
+;;; NOTE: THIS METHOD DISREGARDS ANY COOLDOWN RESTRICTIONS OF ANY SORT FOR THE ENEMIES
 ;;; TODO: create another method that handles cooldowns when assigning targets and moves
 load_random_enemy_attacks:
         ;;; load enemy attacks
@@ -1793,31 +2020,31 @@ hex_byte_to_ROM_char_end2:
 ; Beep duration can be increased by increasing value loaded into C
 ; Beep pitch is increased by decreasing values loaded into B and vice versa
 short_beep:
-    push af
-    push bc
-    push de
-    push hl
-    ld c, 100
-    di
+        push af
+        push bc
+        push de
+        push hl
+        ld c, 100
+        di
 loop:
-    ld a, $10
-    out ($fe), a
-    ld b,100
+        ld a, $10
+        out ($fe), a
+        ld b,100
 delay1:
-    djnz delay1
-    xor a
-    out ($fe), a
-    ld b,100
+        djnz delay1
+        xor a
+        out ($fe), a
+        ld b,100
 delay2:
-    djnz delay2
-    dec c
-    jp nz, loop
-    ei
-    pop hl
-    pop de
-    pop bc
-    pop af
-    ret 
+        djnz delay2
+        dec c
+        jp nz, loop
+        ei
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ret 
 
 ; ########################################################################################################
 ; ################################################ DATA ##################################################
@@ -1828,16 +2055,16 @@ char_select_var:
         defb $00
 
 char_select_p1_c1:
-        defb $01
-char_select_p1_c2:
-        defb $05
-char_select_p2_c1:
         defb $00
-char_select_p2_c2:
+char_select_p1_c2:
         defb $04
+char_select_p2_c1:
+        defb $01
+char_select_p2_c2:
+        defb $05
 
 move_order:
-    defb $02, $31
+        defb $02, $31
 
 ;;; buffer to keep track of the input (or lack thereof) of the last frame
 last_input:
@@ -1856,14 +2083,14 @@ char_data:
 	defb $5A, $00, $14, $04, $05, $06
 	defb $5A, $00, $14, $07, $08, $09
 	defb $8C, $00, $00, $0A, $0B, $0C
-	defb $96, $02, $00, $0D, $0E, $0F
-	defb $96, $04, $00, $10, $11, $12
+	defb $96, $00, $00, $0D, $0E, $0F
+	defb $96, $00, $00, $10, $11, $12
 	
 ;;; <types: phys(1), magic(2), armor(3), MR(4), heal(5), dodge(6), MR debuff(7)>
 ;;; < cd, type, value, 10-byte name (offset from a, $ff = space)>
 ;;; < (13 bytes x 18 skills) In character order >	
 move_dictionary:
-    defb $00, $01, $0A, $90, $98, $88, $A0, $30, $30, $58, $20, $ff, $ff     ; default physical attack - STRUGGLE
+        defb $00, $01, $0A, $90, $98, $88, $A0, $30, $30, $58, $20, $ff, $ff     ; default physical attack - STRUGGLE
 
 	defb $11, $07, $14, $10, $A0, $88, $90, $20, $ff, $ff, $ff, $ff, $ff     ; sets "MR Debuff" bit in target; when target is attacked by a magic type attack, add 20 damage and reset bit - CURSE
 	defb $01, $01, $14, $B0, $38, $00, $10, $50, $ff, $ff, $ff, $ff, $ff     ; weak physical attack (20 damage) - WHACK
@@ -1896,9 +2123,9 @@ in_battle_chars:
 	defb $00, $00, $00, $00, $00, $00, $00, $00
 	defb $00, $00, $00, $00, $00, $00, $00, $00
 post_battle_HP:
-    defb $00, $00, $00, $00
+        defb $00, $00, $00, $00
 post_battle_damage:
-    defb $00
+        defb $00
 
 bordered_third_px_buf:
         defs 33, $ff
