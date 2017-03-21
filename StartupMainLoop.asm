@@ -2198,14 +2198,16 @@ pixel_clear_third:
         jp z, heal   ;;;; TENTATIVE
         cp 2
         jp z, tackle2
-        cp 11
-        jp z, fireball
-        cp 14
-        jp z, fireball
         cp 9
         jp z, tackle2
         cp 11
         jp z, tackle
+        cp 12
+        jp z, fireball
+        cp 14
+        jp z, fireball
+        
+        
         cp 16
         jp z, slash
         cp 17
