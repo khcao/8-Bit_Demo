@@ -137,6 +137,8 @@ start_battle:
 
         call update_data                                        ; read char stat buffers and draw into actual display in the data (top) third (note: only call this again after a call into the animation/actionResolve section)
 
+        call update_visual
+
         call update_menu_buffer                                 ; read menu state and draw into screen buffer of menu (bottom) third (only call this again after an interpretation of input)
         
 main_loop:
@@ -595,8 +597,7 @@ action_resolve_case_end:
         pop hl                                                  ; pop the target byte from the stack to "empty" it for now
 
         ;;; call the animation loop here; pass in whose turn is resolving (held in c; an index of the in_battle_character entries [0 - 3])
-
-
+        call animation_loop
 action_resolve_loop_end:
         inc c
         jp action_resolve_preloop
@@ -693,6 +694,7 @@ action_resolve_skip_p1_c1_turn:
         ld (hl), $01
 action_resolve_do_p1_c1_turn:
         call update_data
+        call update_visual
         call update_menu_buffer
         call reduce_cooldowns                                   ; reduce the active cooldowns of all moves by 1
         ret
@@ -725,14 +727,70 @@ check_game_over_check_win:
         jr nz, check_game_over_end
         ;jr check_game_over_display_win
 check_game_over_display_win:
-        
-
+        call clear_background
+        ld hl, $086C
+        ld de, $3EC8
+        call print_char_to_data
+        inc hl
+        ld de, $3E78
+        call print_char_to_data
+        inc hl
+        ld de, $3EA8
+        call print_char_to_data
+        inc hl
+        ld de, $3D00
+        call print_char_to_data
+        inc hl
+        ld de, $3EB8
+        call print_char_to_data
+        inc hl
+        ld de, $3E48
+        call print_char_to_data
+        inc hl
+        ld de, $3E70
+        call print_char_to_data
+        call infinite_loop
         jr check_game_over_end
 check_game_over_display_loss:
-
-
+        call clear_background
+        ld hl, $086C
+        ld de, $3E38
+        call print_char_to_data
+        inc hl
+        ld de, $3E08
+        call print_char_to_data
+        inc hl
+        ld de, $3E68
+        call print_char_to_data
+        inc hl
+        ld de, $3E28
+        call print_char_to_data
+        inc hl
+        ld de, $3D00
+        call print_char_to_data
+        inc hl
+        ld de, $3E78
+        call print_char_to_data
+        inc hl
+        ld de, $3EB0
+        call print_char_to_data
+        inc hl
+        ld de, $3E28
+        call print_char_to_data
+        inc hl
+        ld de, $3E90
+        call print_char_to_data
+        call infinite_loop
 check_game_over_end:
         ret
+
+infinite_loop:
+        halt
+        halt
+        halt
+        halt
+        halt
+        jr infinite_loop
 
 reduce_cooldowns:
         ld c, 19
@@ -2049,6 +2107,28 @@ delay2:
         pop af
         ret 
 
+
+
+;;; animation logic
+;;; c = the index of the character that just resolved
+animation_loop:
+        push af
+        push bc
+        push de
+        push hl
+
+
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ret
+
+;;; this method is called to draw the inert sprites into the middle third of the screen
+update_visual:
+
+        ret
+
 ; ########################################################################################################
 ; ################################################ DATA ##################################################
 ; ########################################################################################################
@@ -2129,6 +2209,8 @@ post_battle_HP:
         defb $00, $00, $00, $00
 post_battle_damage:
         defb $00
+char_colors:
+        defb $3A, $38, $3C, $39
 
 bordered_third_px_buf:
         defs 33, $ff
