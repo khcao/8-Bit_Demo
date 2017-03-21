@@ -619,6 +619,9 @@ action_resolve_check_dodge_loop:
         and $20                                                 ; mask the status for the dodge bit
         cp $00                                                  ; if dodge bit not set, then skip dodge logic
         jr z, action_resolve_check_dodge_no_dodge
+        ld a, (hl)
+        and $DF
+        ld (hl), a
         dec hl                                                  ; if dodge bit is set, grab the "pre action_resolve" HP
         ld a, (hl)
         ld e, c
